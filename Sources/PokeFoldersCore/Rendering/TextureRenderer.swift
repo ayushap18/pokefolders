@@ -21,6 +21,12 @@ public enum TextureRenderer {
             drawGlass(in: context, rect: rect)
         case .pixel:
             drawPixelGrid(in: context, rect: rect, accentColor: accentColor)
+        case .brushed:
+            drawBrushedLines(in: context, rect: rect, accentColor: accentColor)
+        case .aura:
+            drawAuraSpeckles(in: context, rect: rect, accentColor: accentColor)
+        case .crystalline:
+            drawCrystalFacets(in: context, rect: rect, accentColor: accentColor)
         }
 
         context.restoreGState()
@@ -102,6 +108,56 @@ public enum TextureRenderer {
             }
             y += cell
             row += 1
+        }
+    }
+
+    private static func drawBrushedLines(in context: CGContext, rect: CGRect, accentColor: RGBAColor) {
+        context.setLineWidth(1.4)
+        var y = rect.minY + 14
+        var index = 0
+        while y < rect.maxY - 10 {
+            context.setStrokeColor(accentColor.withAlpha(index.isMultiple(of: 2) ? 0.16 : 0.08).cgColor)
+            context.move(to: CGPoint(x: rect.minX + 24, y: y))
+            context.addLine(to: CGPoint(x: rect.maxX - 32, y: y + 5))
+            context.strokePath()
+            y += 11
+            index += 1
+        }
+    }
+
+    private static func drawAuraSpeckles(in context: CGContext, rect: CGRect, accentColor: RGBAColor) {
+        let points: [(CGFloat, CGFloat, CGFloat)] = [
+            (0.18, 0.24, 5), (0.32, 0.7, 3), (0.62, 0.22, 4), (0.78, 0.58, 6),
+            (0.46, 0.46, 3), (0.88, 0.3, 3), (0.24, 0.52, 4), (0.58, 0.78, 5)
+        ]
+        for point in points {
+            let dot = CGRect(
+                x: rect.minX + rect.width * point.0,
+                y: rect.minY + rect.height * point.1,
+                width: point.2,
+                height: point.2
+            )
+            context.setFillColor(accentColor.withAlpha(0.22).cgColor)
+            context.fillEllipse(in: dot)
+        }
+    }
+
+    private static func drawCrystalFacets(in context: CGContext, rect: CGRect, accentColor: RGBAColor) {
+        let facets = [
+            [CGPoint(x: 0.1, y: 0.16), CGPoint(x: 0.42, y: 0.3), CGPoint(x: 0.2, y: 0.62)],
+            [CGPoint(x: 0.43, y: 0.28), CGPoint(x: 0.82, y: 0.2), CGPoint(x: 0.68, y: 0.56)],
+            [CGPoint(x: 0.28, y: 0.7), CGPoint(x: 0.65, y: 0.58), CGPoint(x: 0.86, y: 0.86)]
+        ]
+        for (index, facet) in facets.enumerated() {
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: rect.minX + rect.width * facet[0].x, y: rect.minY + rect.height * facet[0].y))
+            for point in facet.dropFirst() {
+                path.addLine(to: CGPoint(x: rect.minX + rect.width * point.x, y: rect.minY + rect.height * point.y))
+            }
+            path.closeSubpath()
+            context.addPath(path)
+            context.setFillColor((index.isMultiple(of: 2) ? RGBAColor.white : accentColor).withAlpha(0.16).cgColor)
+            context.fillPath()
         }
     }
 }

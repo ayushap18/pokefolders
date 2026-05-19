@@ -116,7 +116,7 @@ private struct PackGrid: View {
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 8)], spacing: 8) {
-            ForEach(model.packs) { pack in
+            ForEach(model.iconPacks) { pack in
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
                         model.apply(pack: pack)

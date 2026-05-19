@@ -27,23 +27,26 @@ Finder-ready macOS folder icon
 | Area | What PokeFolders does |
 | --- | --- |
 | Native app | SwiftUI sidebar, live preview, inspector, toolbar, onboarding, light and dark mode |
-| Theme gallery | Ten bundled original styles: capture orb, electric, fire, water, grass, psychic, dark ghost, fairy, gold, and pixel |
+| Pack browser | Eight production icon packs with 40 predesigned folder icons |
 | Customization | Base color, tab color, accent, badge type, glow, shadow, gradient, texture, text, badge position, radius, icon size, transparency |
 | Live preview | 512x512 canvas, Finder-size thumbnails, and light/dark desktop checks |
-| Export | PNG 512, PNG 1024, `.iconset`, and full `.icns` generation through `iconutil` |
+| Export | PNG 128/256/512/1024 assets, `.iconset`, full `.icns`, full pack folder, and ZIP generation |
 | Apply | Select a real folder and set its Finder icon using `NSWorkspace` |
 | Presets | Save, load, rename, and delete local JSON presets |
 | Drag and drop | Drop an image into the preview to use it as a custom badge or watermark |
 
-## Built-In Style Packs
+## Built-In Production Packs
 
 - Starter Pack
+- Legendary Pack
 - Electric Pack
 - Fire Pack
 - Water Pack
+- Grass Pack
 - Dark Pack
-- Legendary Pack
-- Pixel Pack
+- Pixel Retro Pack
+
+Each pack includes five unique designs. The committed asset tree contains 160 generated PNG files: 40 icons across 1024, 512, 256, and 128 sizes.
 
 ## App Structure
 
@@ -61,9 +64,16 @@ PokeFolders/
       Services/
       Stores/
     PokeFoldersCoreChecks/       Framework-free verification executable
+    PokeFoldersAssetGenerator/   PNG and Image 2.0 prompt generation
+  Assets/
+    IconPacks/                   Generated PNG assets
+    GenerationPrompts/           Image 2.0 prompt markdown
+  Docs/
+    IconDesignSystem.md          Design rules and copyright safety
   script/
     check.sh
     build_and_run.sh
+    generate_icon_assets.sh
 ```
 
 ## Rendering Pipeline
@@ -122,7 +132,24 @@ The checks cover:
 - PNG export
 - `.iconset` export
 - `.icns` export through `iconutil`
+- Full pack export with PNG folders, iconsets, README, and ZIP
 - Preset save, rename, reload, and delete behavior
+
+## Generate or Replace PNG Assets
+
+The repository includes CoreGraphics-rendered placeholder production assets. Regenerate them with:
+
+```bash
+./script/generate_icon_assets.sh
+```
+
+To replace them with Image 2.0 output:
+
+1. Open the prompt file for a pack in `Assets/GenerationPrompts`.
+2. Generate a single 1024x1024 transparent PNG per icon.
+3. Replace the matching `*_1024.png` in `Assets/IconPacks/<PackName>`.
+4. Downscale to 512, 256, and 128 using a high-quality image pipeline.
+5. Keep file names unchanged.
 
 ## Export Formats
 
@@ -139,6 +166,20 @@ PokeFolders can generate the standard macOS icon sizes:
 ```
 
 For `.iconset`, it writes Finder-compatible filenames such as `icon_16x16.png`, `icon_16x16@2x.png`, and `icon_512x512@2x.png`.
+
+Full pack export creates:
+
+```text
+PokeFolders-<Pack-Name>/
+  PNG/
+    1024/
+    512/
+    256/
+    128/
+  ICNS-Ready/
+  README.txt
+PokeFolders-<Pack-Name>.zip
+```
 
 ## Design Notes
 

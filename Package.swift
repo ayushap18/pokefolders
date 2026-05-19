@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .executable(name: "PokeFolders", targets: ["PokeFolders"]),
         .executable(name: "PokeFoldersCoreChecks", targets: ["PokeFoldersCoreChecks"]),
+        .executable(name: "PokeFoldersAssetGenerator", targets: ["PokeFoldersAssetGenerator"]),
         .library(name: "PokeFoldersCore", targets: ["PokeFoldersCore"])
     ],
     targets: [
@@ -21,6 +22,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "PokeFoldersCoreChecks",
+            dependencies: ["PokeFoldersCore"]
+        ),
+        .executableTarget(
+            name: "PokeFoldersAssetGenerator",
             dependencies: ["PokeFoldersCore"]
         )
     ]

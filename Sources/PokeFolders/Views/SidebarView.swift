@@ -5,58 +5,48 @@ struct SidebarView: View {
     @ObservedObject var model: DesignViewModel
 
     var body: some View {
-        List(selection: $model.selectedThemeID) {
-            ForEach(ThemeCategory.allCases) { category in
-                let themes = model.themes.filter { $0.category == category }
-                if !themes.isEmpty {
-                    Section(category.title) {
-                        ForEach(themes) { theme in
-                            SidebarThemeRow(theme: theme)
-                                .tag(Optional(theme.id))
-                        }
-                    }
+        List(selection: $model.selectedPackID) {
+            Section("Production Packs") {
+                ForEach(model.iconPacks) { pack in
+                    SidebarPackRow(pack: pack)
+                        .tag(pack.id)
                 }
             }
 
-            Section("Preset Packs") {
-                ForEach(model.packs) { pack in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            model.apply(pack: pack)
-                        }
-                    } label: {
-                        Label(pack.name, systemImage: "shippingbox")
-                    }
-                    .buttonStyle(.plain)
-                }
+            Section("Safety") {
+                Label("Original creature-inspired designs", systemImage: "checkmark.shield")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Not affiliated with Pokemon, Nintendo, Game Freak, or The Pokemon Company.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .listStyle(.sidebar)
-        .onChange(of: model.selectedThemeID) { newValue in
-            model.selectTheme(id: newValue)
+        .onChange(of: model.selectedPackID) { newValue in
+            model.selectPack(id: newValue)
         }
     }
 }
 
-private struct SidebarThemeRow: View {
-    var theme: FolderTheme
+private struct SidebarPackRow: View {
+    var pack: IconPack
 
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(theme.baseColor.swiftUIColor.gradient)
-                Circle()
-                    .fill(theme.accentColor.swiftUIColor)
-                    .frame(width: 12, height: 12)
-                    .offset(x: 7, y: -5)
+                    .fill(pack.accentColor.swiftUIColor.gradient)
+                Text("\(pack.icons.count)")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
             }
             .frame(width: 24, height: 20)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(theme.name)
+                Text(pack.name)
                     .lineLimit(1)
-                Text(theme.elementType.title)
+                Text(pack.category.title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

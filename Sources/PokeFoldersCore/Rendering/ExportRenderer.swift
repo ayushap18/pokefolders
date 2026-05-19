@@ -3,9 +3,9 @@ import CoreGraphics
 import ImageIO
 
 public enum ExportRenderer {
-    public static func render(configuration: IconConfiguration, size: Int) -> NSImage {
+    public static func render(configuration: IconConfiguration, size: Int, quality: RenderQuality = .preview) -> NSImage {
         let clampedSize = max(16, min(size, 2048))
-        guard let cgImage = renderCGImage(configuration: configuration, size: clampedSize) else {
+        guard let cgImage = renderCGImage(configuration: configuration, size: clampedSize, quality: quality) else {
             return NSImage(size: NSSize(width: clampedSize, height: clampedSize))
         }
         let imageSize = NSSize(width: clampedSize, height: clampedSize)
@@ -16,7 +16,7 @@ public enum ExportRenderer {
         return image
     }
 
-    public static func renderCGImage(configuration: IconConfiguration, size: Int) -> CGImage? {
+    public static func renderCGImage(configuration: IconConfiguration, size: Int, quality: RenderQuality = .export) -> CGImage? {
         let clampedSize = max(16, min(size, 2048))
         guard let context = CGContext(
             data: nil,
@@ -30,12 +30,12 @@ public enum ExportRenderer {
             return nil
         }
 
-        context.setShouldAntialias(configuration.textureStyle != .pixel)
-        context.interpolationQuality = configuration.textureStyle == .pixel ? .none : .high
+        context.setShouldAntialias(quality.antialias && configuration.textureStyle != .pixel)
+        context.interpolationQuality = configuration.textureStyle == .pixel ? .none : quality.interpolation
 
         let size = NSSize(width: clampedSize, height: clampedSize)
         context.clear(CGRect(origin: .zero, size: size))
-        draw(configuration: configuration, in: CGRect(origin: .zero, size: size), context: context)
+        draw(configuration: configuration, in: CGRect(origin: .zero, size: size), context: context, quality: quality)
 
         return context.makeImage()
     }
@@ -53,8 +53,8 @@ public enum ExportRenderer {
         return pngData(from: cgImage)
     }
 
-    public static func pngData(configuration: IconConfiguration, size: Int) -> Data? {
-        guard let cgImage = renderCGImage(configuration: configuration, size: size) else {
+    public static func pngData(configuration: IconConfiguration, size: Int, quality: RenderQuality = .ultra) -> Data? {
+        guard let cgImage = renderCGImage(configuration: configuration, size: size, quality: quality) else {
             return nil
         }
         return pngData(from: cgImage)
@@ -74,7 +74,7 @@ public enum ExportRenderer {
         return data as Data
     }
 
-    private static func draw(configuration: IconConfiguration, in canvas: CGRect, context: CGContext) {
+    private static func draw(configuration: IconConfiguration, in canvas: CGRect, context: CGContext, quality: RenderQuality) {
         let scale = canvas.width / 512
         context.saveGState()
         context.scaleBy(x: scale, y: scale)
@@ -89,14 +89,18 @@ public enum ExportRenderer {
         let bodyPath = BaseFolderShape.path(in: bodyRect, cornerRadius: CGFloat(configuration.cornerRadius))
         let tabPath = FolderTabShape.path(in: tabRect, cornerRadius: min(CGFloat(configuration.cornerRadius), 38))
 
+        drawAura(configuration: configuration, canvas: unitCanvas, context: context)
         drawShadow(configuration: configuration, bodyPath: bodyPath, tabPath: tabPath, context: context)
         GlowRenderer.drawGlow(in: context, paths: [bodyPath, tabPath], color: configuration.accentColor, intensity: configuration.glowIntensity)
 
-        fill(path: tabPath, in: tabRect, context: context, primary: configuration.tabColor, accent: configuration.accentColor, style: configuration.gradientStyle)
-        fill(path: bodyPath, in: bodyRect, context: context, primary: configuration.baseColor, accent: configuration.accentColor, style: configuration.gradientStyle)
+        fill(path: tabPath, in: tabRect, context: context, primary: configuration.tabColor, accent: configuration.accentColor, palette: configuration.gradientColors, style: configuration.gradientStyle)
+        fill(path: bodyPath, in: bodyRect, context: context, primary: configuration.baseColor, accent: configuration.accentColor, palette: configuration.gradientColors, style: configuration.gradientStyle)
 
         drawAccentBand(configuration: configuration, in: bodyRect, context: context)
         TextureRenderer.apply(style: configuration.textureStyle, in: context, rect: bodyRect, clippedTo: bodyPath, accentColor: configuration.accentColor)
+        if quality != .draft {
+            drawGlossOverlay(configuration: configuration, in: bodyRect, context: context)
+        }
         drawFolderEdges(configuration: configuration, bodyPath: bodyPath, tabPath: tabPath, context: context)
         TypeBadgeRenderer.drawBadge(configuration: configuration, in: context, canvas: unitCanvas)
         TextOverlayRenderer.drawText(configuration.customText, configuration: configuration, in: unitCanvas, context: context)
@@ -114,10 +118,19 @@ public enum ExportRenderer {
     private static func drawShadow(configuration: IconConfiguration, bodyPath: CGPath, tabPath: CGPath, context: CGContext) {
         guard configuration.shadowIntensity > 0.01 else { return }
 
+        let shadowMultiplier: CGFloat = {
+            switch configuration.shadowStyle {
+            case .soft: 0.75
+            case .elevated: 1
+            case .dramatic: 1.35
+            case .long: 1.6
+            case .pixel: 0.65
+            }
+        }()
         context.saveGState()
         context.setShadow(
-            offset: CGSize(width: 0, height: -12 * configuration.shadowIntensity),
-            blur: 18 + CGFloat(configuration.shadowIntensity) * 26,
+            offset: CGSize(width: 0, height: -12 * configuration.shadowIntensity * Double(shadowMultiplier)),
+            blur: 18 + CGFloat(configuration.shadowIntensity) * 26 * shadowMultiplier,
             color: RGBAColor.black.withAlpha(0.16 + configuration.shadowIntensity * 0.24).cgColor
         )
         context.setFillColor(RGBAColor.black.withAlpha(0.2).cgColor)
@@ -134,16 +147,19 @@ public enum ExportRenderer {
         context: CGContext,
         primary: RGBAColor,
         accent: RGBAColor,
+        palette suppliedPalette: [RGBAColor],
         style: GradientStyle
     ) {
         context.saveGState()
         context.addPath(path)
         context.clip()
 
-        let light = primary.adjusted(brightness: 0.16)
-        let dark = primary.mixed(with: accent, amount: 0.32).adjusted(brightness: -0.08)
-        let colors = [light.cgColor, primary.cgColor, dark.cgColor] as CFArray
-        let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 0.45, 1])
+        let palette = suppliedPalette.isEmpty ? currentPalette(primary: primary, accent: accent) : suppliedPalette
+        let colors = palette.map(\.cgColor) as CFArray
+        let locations = palette.indices.map { index in
+            CGFloat(Double(index) / Double(max(palette.count - 1, 1)))
+        }
+        let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: locations)
 
         if let gradient {
             switch style {
@@ -179,12 +195,96 @@ public enum ExportRenderer {
                 )
                 context.setFillColor(accent.withAlpha(0.18).cgColor)
                 context.fill(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height * 0.44))
+            case .layered:
+                context.drawLinearGradient(
+                    gradient,
+                    start: CGPoint(x: rect.midX, y: rect.maxY),
+                    end: CGPoint(x: rect.midX, y: rect.minY),
+                    options: []
+                )
+                context.setFillColor(accent.withAlpha(0.22).cgColor)
+                context.fill(CGRect(x: rect.minX + 12, y: rect.minY + 30, width: rect.width - 24, height: rect.height * 0.28))
+            case .aurora:
+                context.drawRadialGradient(
+                    gradient,
+                    startCenter: CGPoint(x: rect.minX + rect.width * 0.25, y: rect.maxY),
+                    startRadius: rect.width * 0.08,
+                    endCenter: CGPoint(x: rect.maxX - rect.width * 0.2, y: rect.midY),
+                    endRadius: rect.width * 0.82,
+                    options: .drawsAfterEndLocation
+                )
+                context.setFillColor(RGBAColor.white.withAlpha(0.12).cgColor)
+                context.fill(CGRect(x: rect.minX, y: rect.midY, width: rect.width, height: rect.height * 0.42))
             }
         } else {
             context.setFillColor(primary.cgColor)
             context.fill(rect)
         }
 
+        context.restoreGState()
+    }
+
+    private static func currentPalette(primary: RGBAColor, accent: RGBAColor) -> [RGBAColor] {
+        [primary.adjusted(brightness: 0.18), primary, primary.mixed(with: accent, amount: 0.36).adjusted(brightness: -0.08), accent.withAlpha(0.82)]
+    }
+
+    private static func drawAura(configuration: IconConfiguration, canvas: CGRect, context: CGContext) {
+        guard configuration.glowStyle != .none, configuration.glowIntensity > 0.05 else { return }
+
+        let alpha: Double = {
+            switch configuration.glowStyle {
+            case .none: 0
+            case .soft: 0.12
+            case .aura: 0.22
+            case .neon: 0.3
+            case .ember: 0.24
+            case .cosmic: 0.28
+            case .shadow: 0.2
+            case .pixel: 0.1
+            }
+        }()
+
+        let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: [
+                configuration.accentColor.withAlpha(alpha * configuration.glowIntensity).cgColor,
+                configuration.accentColor.withAlpha(0).cgColor
+            ] as CFArray,
+            locations: [0, 1]
+        )
+
+        if let gradient {
+            context.drawRadialGradient(
+                gradient,
+                startCenter: CGPoint(x: canvas.midX, y: canvas.midY + 18),
+                startRadius: 30,
+                endCenter: CGPoint(x: canvas.midX, y: canvas.midY),
+                endRadius: 230,
+                options: .drawsAfterEndLocation
+            )
+        }
+    }
+
+    private static func drawGlossOverlay(configuration: IconConfiguration, in rect: CGRect, context: CGContext) {
+        let overlay = CGMutablePath()
+        overlay.move(to: CGPoint(x: rect.minX + 30, y: rect.maxY - 42))
+        overlay.addCurve(
+            to: CGPoint(x: rect.maxX - 26, y: rect.maxY - 72),
+            control1: CGPoint(x: rect.minX + 140, y: rect.maxY - 5),
+            control2: CGPoint(x: rect.maxX - 150, y: rect.maxY - 18)
+        )
+        overlay.addLine(to: CGPoint(x: rect.maxX - 62, y: rect.maxY - 116))
+        overlay.addCurve(
+            to: CGPoint(x: rect.minX + 46, y: rect.maxY - 84),
+            control1: CGPoint(x: rect.maxX - 160, y: rect.maxY - 72),
+            control2: CGPoint(x: rect.minX + 140, y: rect.maxY - 64)
+        )
+        overlay.closeSubpath()
+
+        context.saveGState()
+        context.addPath(overlay)
+        context.setFillColor(RGBAColor.white.withAlpha(configuration.textureStyle == .matte ? 0.08 : 0.18).cgColor)
+        context.fillPath()
         context.restoreGState()
     }
 

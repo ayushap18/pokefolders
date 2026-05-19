@@ -20,12 +20,18 @@ struct OnboardingView: View {
             }
 
             HStack(spacing: 12) {
-                Label("Export PNG and ICNS", systemImage: "square.and.arrow.up")
+                Label("40 production icons", systemImage: "square.grid.3x3")
+                Label("Export full packs", systemImage: "archivebox")
                 Label("Apply to folders", systemImage: "folder.badge.gearshape")
-                Label("Save presets", systemImage: "bookmark")
             }
             .font(.callout)
             .foregroundStyle(.secondary)
+
+            Text("Original creature-inspired designs only. Not affiliated with Pokemon, Nintendo, Game Freak, or The Pokemon Company.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 430)
 
             Button {
                 dismiss()

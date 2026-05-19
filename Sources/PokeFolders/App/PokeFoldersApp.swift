@@ -16,6 +16,11 @@ struct PokeFoldersApp: App {
         .windowStyle(.titleBar)
         .commands {
             CommandMenu("Design") {
+                Button("Export Current Icon") {
+                    model.exportPNG(size: 1024)
+                }
+                .keyboardShortcut("e", modifiers: [.command])
+
                 Button("Randomize") {
                     model.randomize()
                 }
@@ -25,6 +30,11 @@ struct PokeFoldersApp: App {
                     model.applyToFolder()
                 }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
+
+                Button("Save Preset") {
+                    model.savePreset(in: presetStore)
+                }
+                .keyboardShortcut("s", modifiers: [.command])
             }
         }
     }

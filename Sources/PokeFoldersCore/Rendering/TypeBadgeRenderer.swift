@@ -57,7 +57,8 @@ public enum TypeBadgeRenderer {
 
         let foreground = configuration.accentColor.luminance < 0.45 ? RGBAColor.white : RGBAColor.black
         drawSymbol(
-            configuration.elementType,
+            configuration.badgeStyle,
+            fallbackElement: configuration.elementType,
             in: rect.insetBy(dx: rect.width * 0.23, dy: rect.height * 0.23),
             color: foreground.withAlpha(isWatermark ? 0.2 : 0.94),
             context: context
@@ -71,15 +72,15 @@ public enum TypeBadgeRenderer {
         context.restoreGState()
     }
 
-    private static func drawSymbol(_ element: ElementType, in rect: CGRect, color: RGBAColor, context: CGContext) {
+    private static func drawSymbol(_ badge: BadgeStyle, fallbackElement _: ElementType, in rect: CGRect, color: RGBAColor, context: CGContext) {
         context.saveGState()
         context.setFillColor(color.cgColor)
         context.setStrokeColor(color.cgColor)
         context.setLineCap(.round)
         context.setLineJoin(.round)
 
-        switch element {
-        case .fire:
+        switch badge {
+        case .flame, .ember, .inferno:
             let path = CGMutablePath()
             path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
             path.addCurve(to: CGPoint(x: rect.minX + rect.width * 0.18, y: rect.minY + rect.height * 0.34), control1: CGPoint(x: rect.minX + rect.width * 0.05, y: rect.maxY - rect.height * 0.22), control2: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.58))
@@ -89,7 +90,7 @@ public enum TypeBadgeRenderer {
             path.closeSubpath()
             context.addPath(path)
             context.fillPath()
-        case .water:
+        case .droplet, .ocean, .deepSea:
             let path = CGMutablePath()
             path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
             path.addCurve(to: CGPoint(x: rect.minX + rect.width * 0.16, y: rect.minY + rect.height * 0.35), control1: CGPoint(x: rect.minX + rect.width * 0.24, y: rect.maxY - rect.height * 0.28), control2: CGPoint(x: rect.minX + rect.width * 0.16, y: rect.minY + rect.height * 0.56))
@@ -99,7 +100,7 @@ public enum TypeBadgeRenderer {
             path.closeSubpath()
             context.addPath(path)
             context.fillPath()
-        case .grass:
+        case .leaf, .forest, .leafCrest, .jungle:
             let path = CGMutablePath()
             path.move(to: CGPoint(x: rect.minX + rect.width * 0.18, y: rect.minY + rect.height * 0.18))
             path.addCurve(to: CGPoint(x: rect.maxX - rect.width * 0.08, y: rect.maxY - rect.height * 0.08), control1: CGPoint(x: rect.maxX - rect.width * 0.06, y: rect.minY + rect.height * 0.1), control2: CGPoint(x: rect.maxX, y: rect.maxY - rect.height * 0.32))
@@ -111,7 +112,7 @@ public enum TypeBadgeRenderer {
             context.move(to: CGPoint(x: rect.minX + rect.width * 0.22, y: rect.minY + rect.height * 0.2))
             context.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.18, y: rect.maxY - rect.height * 0.16))
             context.strokePath()
-        case .electric:
+        case .thunder, .cyberSpark, .plasma:
             let path = CGMutablePath()
             path.move(to: CGPoint(x: rect.maxX - rect.width * 0.26, y: rect.maxY))
             path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.22, y: rect.midY + rect.height * 0.05))
@@ -122,19 +123,19 @@ public enum TypeBadgeRenderer {
             path.closeSubpath()
             context.addPath(path)
             context.fillPath()
-        case .psychic:
+        case .mysticCore, .natureAura, .goldAura:
             drawStar(in: rect, points: 8, innerScale: 0.42, context: context)
-        case .dark:
+        case .moon:
             context.fillEllipse(in: rect)
             context.setBlendMode(.clear)
             context.fillEllipse(in: rect.offsetBy(dx: rect.width * 0.28, dy: rect.height * 0.12))
             context.setBlendMode(.normal)
-        case .ghost:
+        case .ghostAura, .shadow:
             context.setLineWidth(rect.width * 0.1)
             context.strokeEllipse(in: rect.insetBy(dx: rect.width * 0.12, dy: rect.height * 0.28))
             context.fillEllipse(in: CGRect(x: rect.minX + rect.width * 0.34, y: rect.midY, width: rect.width * 0.12, height: rect.height * 0.12))
             context.fillEllipse(in: CGRect(x: rect.maxX - rect.width * 0.46, y: rect.midY, width: rect.width * 0.12, height: rect.height * 0.12))
-        case .dragon:
+        case .dragonCrest:
             context.setLineWidth(rect.width * 0.12)
             context.move(to: CGPoint(x: rect.minX + rect.width * 0.16, y: rect.minY + rect.height * 0.28))
             context.addCurve(to: CGPoint(x: rect.maxX - rect.width * 0.18, y: rect.maxY - rect.height * 0.2), control1: CGPoint(x: rect.minX + rect.width * 0.52, y: rect.minY), control2: CGPoint(x: rect.maxX, y: rect.midY))
@@ -146,11 +147,91 @@ public enum TypeBadgeRenderer {
             wing.closeSubpath()
             context.addPath(wing)
             context.fillPath()
-        case .fairy:
-            drawStar(in: rect, points: 5, innerScale: 0.45, context: context)
+        case .crystal, .ice:
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+            path.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+            path.closeSubpath()
+            context.addPath(path)
+            context.fillPath()
+        case .cosmic, .void:
+            drawStar(in: rect, points: 6, innerScale: 0.32, context: context)
+            context.setFillColor(color.withAlpha(0.42).cgColor)
+            context.fillEllipse(in: rect.insetBy(dx: rect.width * 0.34, dy: rect.height * 0.34))
+        case .rune:
+            context.setLineWidth(rect.width * 0.12)
+            context.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+            context.addLine(to: CGPoint(x: rect.minX + rect.width * 0.22, y: rect.midY))
+            context.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
+            context.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.2, y: rect.midY))
+            context.addLine(to: CGPoint(x: rect.minX + rect.width * 0.28, y: rect.midY))
+            context.strokePath()
+        case .storm, .wave:
+            context.setLineWidth(rect.width * 0.12)
+            context.move(to: CGPoint(x: rect.minX, y: rect.midY))
+            context.addCurve(to: CGPoint(x: rect.maxX, y: rect.midY), control1: CGPoint(x: rect.minX + rect.width * 0.28, y: rect.maxY), control2: CGPoint(x: rect.maxX - rect.width * 0.28, y: rect.minY))
+            context.strokePath()
+        case .bubble:
+            context.setLineWidth(rect.width * 0.08)
+            context.strokeEllipse(in: rect.insetBy(dx: rect.width * 0.08, dy: rect.height * 0.08))
+            context.fillEllipse(in: CGRect(x: rect.maxX - rect.width * 0.34, y: rect.maxY - rect.height * 0.32, width: rect.width * 0.2, height: rect.height * 0.2))
+        case .lava, .volcano:
+            let mountain = CGMutablePath()
+            mountain.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            mountain.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+            mountain.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            mountain.closeSubpath()
+            context.addPath(mountain)
+            context.fillPath()
+            context.setBlendMode(.clear)
+            context.fillEllipse(in: CGRect(x: rect.midX - rect.width * 0.14, y: rect.maxY - rect.height * 0.3, width: rect.width * 0.28, height: rect.height * 0.18))
+            context.setBlendMode(.normal)
+        case .vine:
+            context.setLineWidth(rect.width * 0.1)
+            context.move(to: CGPoint(x: rect.minX + rect.width * 0.2, y: rect.minY))
+            context.addCurve(to: CGPoint(x: rect.maxX - rect.width * 0.18, y: rect.maxY), control1: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.22), control2: CGPoint(x: rect.minX, y: rect.maxY - rect.height * 0.2))
+            context.strokePath()
+        case .smoke:
+            context.setLineWidth(rect.width * 0.11)
+            for offset in [0.18, 0.42, 0.66] {
+                context.move(to: CGPoint(x: rect.minX + rect.width * offset, y: rect.minY))
+                context.addCurve(to: CGPoint(x: rect.minX + rect.width * (offset + 0.08), y: rect.maxY), control1: CGPoint(x: rect.minX + rect.width * (offset - 0.2), y: rect.midY), control2: CGPoint(x: rect.minX + rect.width * (offset + 0.24), y: rect.midY))
+                context.strokePath()
+            }
+        case .pixelBlock, .pixelCreature, .retroConsole, .arcadeBadge, .classicGame:
+            drawPixelBadge(badge, in: rect, context: context)
         }
 
         context.restoreGState()
+    }
+
+    private static func drawPixelBadge(_ badge: BadgeStyle, in rect: CGRect, context: CGContext) {
+        let cell = rect.width / 7
+        let pattern: [(Int, Int)] = {
+            switch badge {
+            case .pixelCreature:
+                return [(2,1),(4,1),(1,2),(2,2),(3,2),(4,2),(5,2),(1,3),(3,3),(5,3),(2,4),(3,4),(4,4),(2,5),(4,5)]
+            case .retroConsole:
+                return [(1,1),(2,1),(3,1),(4,1),(5,1),(1,2),(5,2),(1,3),(2,3),(4,3),(5,3),(1,4),(5,4),(1,5),(2,5),(3,5),(4,5),(5,5)]
+            case .arcadeBadge:
+                return [(3,0),(2,1),(3,1),(4,1),(1,2),(2,2),(3,2),(4,2),(5,2),(2,3),(3,3),(4,3),(1,4),(5,4),(0,5),(6,5)]
+            case .classicGame:
+                return [(2,1),(3,1),(4,1),(1,2),(2,2),(4,2),(5,2),(1,3),(2,3),(3,3),(4,3),(5,3),(2,4),(4,4),(1,5),(5,5)]
+            default:
+                return [(2,1),(3,1),(4,1),(1,2),(2,2),(3,2),(4,2),(5,2),(1,3),(2,3),(3,3),(4,3),(5,3),(2,4),(3,4),(4,4),(3,5)]
+            }
+        }()
+
+        for block in pattern {
+            context.fill(CGRect(
+                x: rect.minX + CGFloat(block.0) * cell,
+                y: rect.minY + CGFloat(block.1) * cell,
+                width: cell * 0.95,
+                height: cell * 0.95
+            ))
+        }
     }
 
     private static func drawStar(in rect: CGRect, points: Int, innerScale: CGFloat, context: CGContext) {

@@ -36,13 +36,7 @@ public struct PresetPack: Codable, Hashable, Identifiable, Sendable {
         self.themeIDs = themeIDs
     }
 
-    public static let samplePacks: [PresetPack] = [
-        PresetPack(id: "starter", name: "Starter Pack", themeIDs: ["capture-orb", "sprout-starter", "fairy-pastel"]),
-        PresetPack(id: "electric", name: "Electric Pack", themeIDs: ["electric-yellow", "retro-pixel"]),
-        PresetPack(id: "fire", name: "Fire Pack", themeIDs: ["ember-dragon", "capture-orb"]),
-        PresetPack(id: "water", name: "Water Pack", themeIDs: ["tide-shell"]),
-        PresetPack(id: "dark", name: "Dark Pack", themeIDs: ["shadow-ghost"]),
-        PresetPack(id: "legendary", name: "Legendary Pack", themeIDs: ["legendary-gold"]),
-        PresetPack(id: "pixel", name: "Pixel Pack", themeIDs: ["retro-pixel"])
-    ]
+    public static let samplePacks: [PresetPack] = ProductionIconCatalog.allPacks.map { pack in
+        PresetPack(id: pack.id, name: pack.name, themeIDs: pack.icons.map(\.id))
+    }
 }

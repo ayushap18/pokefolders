@@ -6,11 +6,18 @@ import PokeFoldersCore
 @MainActor
 final class DesignViewModel: ObservableObject {
     @Published var configuration: IconConfiguration
+    @Published var selectedPackID: String
+    @Published var selectedDesignID: String
     @Published var selectedThemeID: String?
+    @Published var searchText = ""
+    @Published var selectedTypeFilter: ElementType?
+    @Published var hoveredDesignID: String?
     @Published var statusMessage: StatusMessage?
+    @Published var isExporting = false
 
+    let iconPacks = ProductionIconCatalog.allPacks
     let themes = FolderTheme.sampleThemes
-    let packs = PresetPack.samplePacks
+    let legacyPresetPacks = PresetPack.samplePacks
 
     private let exportService: ExportService
     private let folderIconApplier: FolderIconApplier
@@ -20,43 +27,102 @@ final class DesignViewModel: ObservableObject {
         exportService: ExportService = ExportService(),
         folderIconApplier: FolderIconApplier = FolderIconApplier()
     ) {
+        let firstDesign = ProductionIconCatalog.allDesigns[0]
         self.configuration = configuration
-        self.selectedThemeID = configuration.themeID
+        self.selectedPackID = firstDesign.packId
+        self.selectedDesignID = configuration.designID ?? firstDesign.id
+        self.selectedThemeID = configuration.designID ?? firstDesign.id
         self.exportService = exportService
         self.folderIconApplier = folderIconApplier
+        if let design = ProductionIconCatalog.design(id: self.selectedDesignID) {
+            self.configuration = IconConfiguration(design: design)
+        }
+    }
+
+    var selectedPack: IconPack {
+        iconPacks.first { $0.id == selectedPackID } ?? iconPacks[0]
+    }
+
+    var selectedDesign: FolderIconDesign {
+        ProductionIconCatalog.design(id: selectedDesignID) ?? selectedPack.icons[0]
     }
 
     var selectedTheme: FolderTheme {
-        themes.first { $0.id == configuration.themeID } ?? themes[0]
+        let pack = ProductionIconCatalog.pack(id: selectedDesign.packId) ?? selectedPack
+        return FolderTheme(design: selectedDesign, pack: pack)
+    }
+
+    var filteredDesigns: [FolderIconDesign] {
+        selectedPack.icons.filter { design in
+            let matchesSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || design.name.localizedCaseInsensitiveContains(searchText)
+                || design.type.title.localizedCaseInsensitiveContains(searchText)
+            let matchesType = selectedTypeFilter == nil || design.type == selectedTypeFilter
+            return matchesSearch && matchesType
+        }
+    }
+
+    var productionFilterTypes: [ElementType] {
+        [.fire, .water, .grass, .electric, .dark, .mystic, .legendary, .pixel]
+    }
+
+    func selectPack(id: String) {
+        guard let pack = iconPacks.first(where: { $0.id == id }) else { return }
+        selectedPackID = id
+        selectedTypeFilter = nil
+        searchText = ""
+        if let first = pack.icons.first {
+            selectDesign(first)
+        }
+    }
+
+    func selectDesign(_ design: FolderIconDesign) {
+        selectedDesignID = design.id
+        selectedThemeID = design.id
+        if selectedPackID != design.packId {
+            selectedPackID = design.packId
+        }
+        configuration.apply(design: design)
+        statusMessage = StatusMessage(text: "\(design.name) loaded.", style: .success)
     }
 
     func selectTheme(id: String?) {
-        guard let id, let theme = themes.first(where: { $0.id == id }) else { return }
-        configuration.apply(theme: theme)
-        selectedThemeID = id
-        statusMessage = StatusMessage(text: "\(theme.name) loaded.", style: .success)
+        guard let id, let design = ProductionIconCatalog.design(id: id) else { return }
+        selectDesign(design)
     }
 
-    func apply(pack: PresetPack) {
-        guard let id = pack.themeIDs.first else { return }
-        selectTheme(id: id)
-        statusMessage = StatusMessage(text: "\(pack.name) applied.", style: .success)
+    func apply(pack: IconPack) {
+        selectPack(id: pack.id)
+        statusMessage = StatusMessage(text: "\(pack.name) opened.", style: .success)
     }
 
     func apply(preset: DesignPreset) {
         configuration = preset.configuration
-        selectedThemeID = preset.configuration.themeID
+        let designID = preset.configuration.designID ?? preset.configuration.themeID
+        if let design = ProductionIconCatalog.design(id: designID) {
+            selectedDesignID = design.id
+            selectedPackID = design.packId
+            selectedThemeID = design.id
+        }
         statusMessage = StatusMessage(text: "\(preset.name) loaded.", style: .success)
     }
 
     func randomize() {
+        let design = ProductionIconCatalog.allDesigns.randomElement() ?? ProductionIconCatalog.allDesigns[0]
+        selectDesign(design)
         configuration = IconConfiguration.random()
-        selectedThemeID = configuration.themeID
-        statusMessage = StatusMessage(text: "Random design generated.", style: .success)
+        selectedDesignID = design.id
+        selectedPackID = design.packId
+        selectedThemeID = design.id
+        statusMessage = StatusMessage(text: "Random production design generated.", style: .success)
     }
 
-    func previewImage(size: Int = 512) -> NSImage {
-        ExportRenderer.render(configuration: configuration, size: size)
+    func previewImage(size: Int = 512, quality: RenderQuality = .preview) -> NSImage {
+        ExportRenderer.render(configuration: configuration, size: size, quality: quality)
+    }
+
+    func previewImage(for design: FolderIconDesign, size: Int = 256) -> NSImage {
+        ExportRenderer.render(configuration: IconConfiguration(design: design), size: size, quality: .preview)
     }
 
     func setCustomBadge(data: Data) {
@@ -72,16 +138,16 @@ final class DesignViewModel: ObservableObject {
     }
 
     func savePreset(in presetStore: PresetStore) {
-        let defaultName = "\(selectedTheme.name) \(DateFormatter.shortPresetStamp.string(from: Date()))"
+        let defaultName = "\(selectedDesign.name) \(DateFormatter.shortPresetStamp.string(from: Date()))"
         guard let name = PanelBridge.promptForText(
             title: "Save Preset",
-            message: "Name this design.",
+            message: "Name this production design.",
             defaultValue: defaultName
         ) else {
             return
         }
 
-        if presetStore.save(name: name, configuration: configuration, packName: selectedTheme.packName) != nil {
+        if presetStore.save(name: name, configuration: configuration, packName: selectedPack.name) != nil {
             statusMessage = StatusMessage(text: "\(name) saved.", style: .success)
         } else if let error = presetStore.lastError {
             statusMessage = StatusMessage(text: error, style: .failure)
@@ -115,21 +181,26 @@ final class DesignViewModel: ObservableObject {
     }
 
     func exportPNG(size: Int) {
-        guard let url = PanelBridge.savePNGURL(defaultName: "PokeFolders-\(size)") else { return }
+        guard let url = PanelBridge.savePNGURL(defaultName: "\(selectedDesign.exportBaseName)_\(size)") else { return }
 
         do {
-            try exportService.exportPNG(configuration: configuration, size: size, to: url)
+            try exportService.exportPNG(configuration: configuration, size: size, to: url, quality: .ultra)
             statusMessage = StatusMessage(text: "PNG exported to \(url.lastPathComponent).", style: .success)
         } catch {
             statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
         }
     }
 
-    func exportIconset() {
-        guard let directory = PanelBridge.chooseDirectory(title: "Export Iconset") else { return }
+    func exportSelectedIconset() {
+        guard let directory = PanelBridge.chooseDirectory(title: "Export ICNS-ready Iconset") else { return }
 
         do {
-            let url = try exportService.exportIconset(configuration: configuration, to: directory, name: "PokeFoldersIcon")
+            let url = try exportService.exportIconset(
+                configuration: configuration,
+                to: directory,
+                name: selectedDesign.exportBaseName,
+                quality: .ultra
+            )
             statusMessage = StatusMessage(text: "\(url.lastPathComponent) exported.", style: .success)
         } catch {
             statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
@@ -137,14 +208,27 @@ final class DesignViewModel: ObservableObject {
     }
 
     func exportICNS() {
-        guard let url = PanelBridge.saveICNSURL(defaultName: "PokeFoldersIcon") else { return }
+        guard let url = PanelBridge.saveICNSURL(defaultName: selectedDesign.exportBaseName) else { return }
 
         do {
-            try exportService.exportICNS(configuration: configuration, to: url, name: "PokeFoldersIcon")
+            try exportService.exportICNS(configuration: configuration, to: url, name: selectedDesign.exportBaseName, quality: .ultra)
             statusMessage = StatusMessage(text: "ICNS exported to \(url.lastPathComponent).", style: .success)
         } catch {
             statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
         }
+    }
+
+    func exportFullPack() {
+        guard let directory = PanelBridge.chooseDirectory(title: "Export \(selectedPack.name)") else { return }
+
+        isExporting = true
+        do {
+            let url = try exportService.exportFullPack(selectedPack, to: directory, includeZip: true)
+            statusMessage = StatusMessage(text: "\(url.lastPathComponent) exported with PNG, iconsets, and ZIP.", style: .success)
+        } catch {
+            statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
+        }
+        isExporting = false
     }
 
     func applyToFolder() {
