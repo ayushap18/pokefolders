@@ -9,15 +9,16 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(model: model)
-                .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 320)
+                .navigationSplitViewColumnWidth(min: 284, ideal: 312, max: 360)
         } detail: {
             HSplitView {
                 PackBrowserView(model: model)
-                    .frame(minWidth: 610, maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(minWidth: 680, maxWidth: .infinity, maxHeight: .infinity)
 
                 IconDetailView(model: model, presetStore: presetStore)
-                    .frame(minWidth: 350, idealWidth: 390, maxWidth: 460, maxHeight: .infinity)
+                    .frame(minWidth: 380, idealWidth: 420, maxWidth: 480, maxHeight: .infinity)
             }
+            .background(AppTheme.Colors.appBackground)
             .overlay(alignment: .bottom) {
                 if let status = model.statusMessage {
                     ToastBanner(status: status)
@@ -27,6 +28,7 @@ struct ContentView: View {
             }
         }
         .navigationTitle("PokeFolders")
+        .preferredColorScheme(.dark)
         .toolbar {
             ToolbarItemGroup {
                 Menu {
@@ -67,8 +69,10 @@ struct ContentView: View {
         .overlay {
             if model.isExporting {
                 ProgressView("Exporting pack...")
-                    .padding(18)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    .font(AppTheme.Typography.callout)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                    .padding(AppTheme.Spacing.lg)
+                    .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: AppTheme.Colors.scannerCyan, isActive: true, showScanlines: true)
             }
         }
         .sheet(isPresented: Binding(get: { !hasSeenOnboarding }, set: { hasSeenOnboarding = !$0 })) {
@@ -85,21 +89,17 @@ private struct ToastBanner: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: iconName)
+                .font(.system(size: 15, weight: .bold))
             Text(status.text)
                 .lineLimit(2)
             Spacer(minLength: 0)
         }
-        .font(.callout)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(width: 420)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(tint.opacity(0.35), lineWidth: 1)
-        }
+        .font(AppTheme.Typography.callout)
+        .padding(.horizontal, AppTheme.Spacing.lg)
+        .padding(.vertical, AppTheme.Spacing.md)
+        .frame(width: 460)
+        .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: tint, isActive: true, showScanlines: true)
         .foregroundStyle(tint)
-        .shadow(color: .black.opacity(0.16), radius: 16, y: 8)
     }
 
     private var iconName: String {

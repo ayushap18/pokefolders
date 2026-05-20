@@ -5,76 +5,166 @@ struct IconDetailView: View {
     @ObservedObject var model: DesignViewModel
     @ObservedObject var presetStore: PresetStore
 
+    private var accent: Color {
+        AppTheme.Colors.typeColor(model.selectedDesign.type)
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                preview
-                safetyNote
-                actionButtons
-                editableControls
-                savedPresets
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.lg) {
+                InspectorPreviewPanel(model: model)
+                InspectorActionPanel(model: model)
+                InspectorControlsPanel(model: model)
+                SavedPresetPanel(model: model, presetStore: presetStore)
+                SafetyInfoCard()
             }
-            .padding(16)
+            .padding(AppTheme.Spacing.lg)
         }
-        .background(.bar)
+        .background {
+            ZStack {
+                AppTheme.Colors.inspectorBackground
+                RadialGradient(
+                    colors: [accent.opacity(0.16), .clear],
+                    center: .top,
+                    startRadius: 60,
+                    endRadius: 420
+                )
+                ScanlineOverlay(opacity: 0.014, spacing: 10)
+            }
+            .ignoresSafeArea()
+        }
     }
+}
 
-    private var preview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Image(nsImage: model.previewImage(size: 512, quality: .preview))
-                .resizable()
-                .interpolation(model.configuration.textureStyle == .pixel ? .none : .high)
-                .frame(width: 256, height: 256)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(model.selectedDesign.accentColor.swiftUIColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+private struct InspectorPreviewPanel: View {
+    @ObservedObject var model: DesignViewModel
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(model.selectedDesign.name)
-                    .font(.title2.bold())
-                    .lineLimit(1)
-                Text("\(model.selectedPack.name) - \(model.selectedDesign.type.title)")
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+    private var design: FolderIconDesign { model.selectedDesign }
+    private var accent: Color { AppTheme.Colors.typeColor(design.type) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                    Text("ACTIVE DESIGN")
+                        .font(AppTheme.Typography.utilityLabel)
+                        .tracking(1.3)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                    Text(design.name)
+                        .font(AppTheme.Typography.title)
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
+                Spacer()
+                ElementTypeChip(type: design.type)
+            }
+
+            ZStack {
+                Circle()
+                    .stroke(accent.opacity(0.24), lineWidth: 1)
+                    .frame(width: 258, height: 258)
+                Circle()
+                    .stroke(AppTheme.Colors.scannerCyan.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [4, 8]))
+                    .frame(width: 216, height: 216)
+                Image(nsImage: model.previewImage(size: 512, quality: .preview))
+                    .resizable()
+                    .interpolation(model.configuration.textureStyle == .pixel ? .none : .high)
+                    .frame(width: 224, height: 224)
+                    .shadow(color: accent.opacity(0.42), radius: 28, y: 12)
+            }
+            .frame(maxWidth: .infinity, minHeight: 274)
+            .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: AppTheme.Radius.xl, style: .continuous))
+            .overlay {
+                CornerBrackets(color: accent.opacity(0.55), inset: 14, length: 24)
+            }
+
+            HStack(spacing: AppTheme.Spacing.sm) {
+                DataChip(label: "Pack", value: model.selectedPack.name.replacingOccurrences(of: " Pack", with: ""), accent: AppTheme.Colors.categoryColor(model.selectedPack.category))
+                DataChip(label: "Badge", value: design.badgeStyle.title, accent: accent)
             }
         }
-        .detailCard()
+        .padding(AppTheme.Spacing.lg)
+        .dexPanel(cornerRadius: AppTheme.Radius.xl, accent: accent, isActive: true, showScanlines: true)
+    }
+}
+
+private struct InspectorActionPanel: View {
+    @ObservedObject var model: DesignViewModel
+
+    private var accent: Color {
+        AppTheme.Colors.typeColor(model.selectedDesign.type)
     }
 
-    private var safetyNote: some View {
-        Label("These are original creature-inspired folder designs. This app is not affiliated with Pokemon, Nintendo, Game Freak, or The Pokemon Company.", systemImage: "checkmark.shield")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .detailCard()
-    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Text("OUTPUT")
+                .font(AppTheme.Typography.sectionLabel)
+                .tracking(1.3)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
 
-    private var actionButtons: some View {
-        VStack(spacing: 8) {
             Button {
                 model.applyToFolder()
             } label: {
-                Label("Apply this design", systemImage: "folder.badge.gearshape")
+                Label("Apply to Folder", systemImage: "folder.badge.gearshape")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .dexButton(accent: accent, prominent: true)
 
-            HStack {
-                Button("Export this icon") { model.exportPNG(size: 1024) }
-                Button("Export full pack") { model.exportFullPack() }
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Button {
+                    model.exportPNG(size: 1024)
+                } label: {
+                    Label("PNG", systemImage: "photo")
+                        .frame(maxWidth: .infinity)
+                }
+                .dexButton(accent: AppTheme.Colors.scannerCyan)
+
+                Button {
+                    model.exportICNS()
+                } label: {
+                    Label("ICNS", systemImage: "app.dashed")
+                        .frame(maxWidth: .infinity)
+                }
+                .dexButton(accent: AppTheme.Colors.scannerPurple)
             }
-            .buttonStyle(.bordered)
+
+            Button {
+                model.exportFullPack()
+            } label: {
+                Label("Export Full Pack", systemImage: "archivebox")
+                    .frame(maxWidth: .infinity)
+            }
+            .dexButton(accent: AppTheme.Colors.categoryColor(model.selectedPack.category))
         }
-        .detailCard()
+        .padding(AppTheme.Spacing.md)
+        .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: accent, showScanlines: true)
+    }
+}
+
+private struct InspectorControlsPanel: View {
+    @ObservedObject var model: DesignViewModel
+
+    private var accent: Color {
+        AppTheme.Colors.typeColor(model.selectedDesign.type)
     }
 
-    private var editableControls: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Detail Controls", systemImage: "slider.horizontal.3")
-                .font(.headline)
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Label("Design Controls", systemImage: "slider.horizontal.3")
+                .font(AppTheme.Typography.sectionLabel)
+                .tracking(1.1)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
 
-            ColorPicker("Base color", selection: $model.configuration.color(\.baseColor), supportsOpacity: true)
-            ColorPicker("Accent color", selection: $model.configuration.color(\.accentColor), supportsOpacity: true)
-            ColorPicker("Tab color", selection: $model.configuration.color(\.tabColor), supportsOpacity: true)
+            VStack(spacing: AppTheme.Spacing.md) {
+                ColorPicker("Base color", selection: $model.configuration.color(\.baseColor), supportsOpacity: true)
+                ColorPicker("Accent color", selection: $model.configuration.color(\.accentColor), supportsOpacity: true)
+                ColorPicker("Tab color", selection: $model.configuration.color(\.tabColor), supportsOpacity: true)
+            }
+            .font(AppTheme.Typography.callout)
+
+            Divider()
+                .overlay(AppTheme.Colors.panelStroke)
 
             Picker("Badge", selection: $model.configuration.badgeStyle) {
                 ForEach(BadgeStyle.allCases) { badge in
@@ -99,51 +189,101 @@ struct IconDetailView: View {
             SliderRow(title: "Corner radius", value: $model.configuration.cornerRadius, range: 24...78)
 
             Toggle("Transparent background", isOn: $model.configuration.transparentBackground)
+                .toggleStyle(.switch)
         }
-        .detailCard()
+        .font(AppTheme.Typography.callout)
+        .foregroundStyle(AppTheme.Colors.textPrimary)
+        .padding(AppTheme.Spacing.md)
+        .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: accent, showScanlines: true)
     }
+}
 
-    private var savedPresets: some View {
-        VStack(alignment: .leading, spacing: 12) {
+private struct SavedPresetPanel: View {
+    @ObservedObject var model: DesignViewModel
+    @ObservedObject var presetStore: PresetStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             HStack {
                 Label("Saved Presets", systemImage: "bookmark")
-                    .font(.headline)
+                    .font(AppTheme.Typography.sectionLabel)
+                    .tracking(1.1)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
                 Spacer()
                 Button {
                     model.savePreset(in: presetStore)
                 } label: {
                     Image(systemName: "plus")
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(AppTheme.Colors.scannerCyan)
             }
 
             if presetStore.presets.isEmpty {
-                Text("No saved presets yet.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    Image(systemName: "bookmark.slash")
+                        .font(.title3)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                    Text("No saved presets yet.")
+                        .font(AppTheme.Typography.callout)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 92)
+                .background(AppTheme.Colors.panelBase.opacity(0.42), in: RoundedRectangle(cornerRadius: AppTheme.Radius.md, style: .continuous))
             } else {
                 ForEach(presetStore.presets) { preset in
-                    HStack(spacing: 8) {
-                        Image(nsImage: ExportRenderer.render(configuration: preset.configuration, size: 64, quality: .draft))
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(preset.name)
-                                .lineLimit(1)
-                            Text(preset.packName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        Button { model.apply(preset: preset) } label: { Image(systemName: "arrow.down.circle") }
-                        Button { model.renamePreset(preset, in: presetStore) } label: { Image(systemName: "pencil") }
-                        Button(role: .destructive) { model.deletePreset(preset, in: presetStore) } label: { Image(systemName: "trash") }
-                    }
-                    .buttonStyle(.borderless)
+                    PresetRow(
+                        preset: preset,
+                        loadAction: { model.apply(preset: preset) },
+                        renameAction: { model.renamePreset(preset, in: presetStore) },
+                        deleteAction: { model.deletePreset(preset, in: presetStore) }
+                    )
                 }
             }
         }
-        .detailCard()
+        .padding(AppTheme.Spacing.md)
+        .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: AppTheme.Colors.scannerCyan, showScanlines: true)
+    }
+}
+
+private struct PresetRow: View {
+    var preset: DesignPreset
+    var loadAction: () -> Void
+    var renameAction: () -> Void
+    var deleteAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: AppTheme.Spacing.sm) {
+            Image(nsImage: ExportRenderer.render(configuration: preset.configuration, size: 64, quality: .draft))
+                .resizable()
+                .interpolation(preset.configuration.textureStyle == .pixel ? .none : .high)
+                .frame(width: 40, height: 40)
+                .background(AppTheme.Colors.panelBase.opacity(0.54), in: RoundedRectangle(cornerRadius: AppTheme.Radius.sm, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(preset.name)
+                    .font(AppTheme.Typography.callout)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                    .lineLimit(1)
+                Text(preset.packName)
+                    .font(AppTheme.Typography.utilityLabel)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button(action: loadAction) { Image(systemName: "arrow.down.circle") }
+            Button(action: renameAction) { Image(systemName: "pencil") }
+            Button(role: .destructive, action: deleteAction) { Image(systemName: "trash") }
+        }
+        .buttonStyle(.plain)
+        .padding(AppTheme.Spacing.sm)
+        .background(AppTheme.Colors.panelBase.opacity(0.46), in: RoundedRectangle(cornerRadius: AppTheme.Radius.md, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppTheme.Radius.md, style: .continuous)
+                .stroke(AppTheme.Colors.panelStroke, lineWidth: 1)
+        }
     }
 }
 
@@ -153,23 +293,16 @@ private struct SliderRow: View {
     var range: ClosedRange<Double>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
             HStack {
                 Text(title)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
                 Spacer()
                 Text(value.formatted(.number.precision(.fractionLength(2))))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.Colors.scannerCyan)
                     .monospacedDigit()
             }
             Slider(value: $value, in: range)
         }
-    }
-}
-
-private extension View {
-    func detailCard() -> some View {
-        self.padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
     }
 }

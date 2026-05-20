@@ -5,39 +5,60 @@ struct PackBrowserView: View {
     @ObservedObject var model: DesignViewModel
 
     private let columns = [
-        GridItem(.adaptive(minimum: 164, maximum: 220), spacing: 14)
+        GridItem(.adaptive(minimum: 188, maximum: 242), spacing: AppTheme.Spacing.lg)
     ]
+
+    private var accent: Color {
+        AppTheme.Colors.categoryColor(model.selectedPack.category)
+    }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                header
-                packCards
-                controls
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xl) {
+                StudioToolbar(model: model)
+                PackHeroView(model: model)
+                PackCarouselView(model: model)
+
+                if !model.recentlyExportedDesigns.isEmpty {
+                    RecentExportStrip(model: model)
+                }
+
+                BrowserControlPanel(model: model)
 
                 if model.filteredDesigns.isEmpty {
                     EmptyStateView()
                 } else {
-                    LazyVGrid(columns: columns, spacing: 14) {
+                    LazyVGrid(columns: columns, spacing: AppTheme.Spacing.lg) {
                         ForEach(model.filteredDesigns) { design in
                             IconGridCard(
                                 design: design,
                                 image: model.previewImage(for: design, size: 256),
                                 isSelected: design.id == model.selectedDesignID,
-                                isHovered: design.id == model.hoveredDesignID
+                                isHovered: design.id == model.hoveredDesignID,
+                                isFavorite: model.favoriteDesignIDs.contains(design.id),
+                                selectAction: {
+                                    withAnimation(AppTheme.Motion.spring) {
+                                        model.selectDesign(design)
+                                    }
+                                },
+                                favoriteAction: {
+                                    model.toggleFavorite(design)
+                                },
+                                exportAction: {
+                                    model.selectDesign(design)
+                                    model.exportPNG(size: 1024)
+                                }
                             )
                             .onHover { hovering in
-                                withAnimation(.easeInOut(duration: 0.16)) {
+                                withAnimation(AppTheme.Motion.quick) {
                                     model.hoveredDesignID = hovering ? design.id : nil
-                                }
-                            }
-                            .onTapGesture {
-                                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                                    model.selectDesign(design)
                                 }
                             }
                             .contextMenu {
                                 Button("Apply this design") { model.selectDesign(design) }
+                                Button(model.favoriteDesignIDs.contains(design.id) ? "Remove Favorite" : "Favorite") {
+                                    model.toggleFavorite(design)
+                                }
                                 Button("Export this icon") {
                                     model.selectDesign(design)
                                     model.exportPNG(size: 1024)
@@ -45,106 +66,360 @@ struct PackBrowserView: View {
                             }
                         }
                     }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
-            .padding(24)
+            .padding(AppTheme.Spacing.xl)
         }
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.16))
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Production Icon Packs")
-                .font(.largeTitle.bold())
-                .lineLimit(1)
-            Text("Premium original folder designs for collectible-creature inspired desktops.")
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-        }
-    }
-
-    private var packCards: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(model.iconPacks) { pack in
-                    PackCard(pack: pack, isSelected: pack.id == model.selectedPackID)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                model.apply(pack: pack)
-                            }
-                        }
-                }
+        .background {
+            ZStack {
+                AppTheme.Colors.studioBackground
+                RadialGradient(
+                    colors: [accent.opacity(0.18), .clear],
+                    center: .topLeading,
+                    startRadius: 80,
+                    endRadius: 680
+                )
+                ScanlineOverlay(opacity: 0.016, spacing: 10)
             }
-            .padding(.vertical, 2)
+            .ignoresSafeArea()
         }
     }
+}
 
-    private var controls: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Search icons", text: $model.searchText)
+private struct StudioToolbar: View {
+    @ObservedObject var model: DesignViewModel
+
+    var body: some View {
+        HStack(spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "scope")
+                    .foregroundStyle(AppTheme.Colors.scannerCyan)
+                TextField("Scan icons, types, textures", text: $model.searchText)
                     .textFieldStyle(.plain)
+                    .font(AppTheme.Typography.body)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                if !model.searchText.isEmpty {
+                    Button {
+                        model.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(AppTheme.Colors.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .padding(10)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, AppTheme.Spacing.md)
+            .frame(height: 42)
+            .dexPanel(cornerRadius: AppTheme.Radius.md, accent: AppTheme.Colors.scannerCyan, showScanlines: true)
+
+            Picker("Sort", selection: $model.sortMode) {
+                ForEach(IconSortMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(width: 136)
+
+            Button {
+                model.exportFullPack()
+            } label: {
+                Label("Export Pack", systemImage: "archivebox")
+            }
+            .dexButton(accent: AppTheme.Colors.categoryColor(model.selectedPack.category), prominent: true)
+
+            Button {
+                withAnimation(AppTheme.Motion.spring) {
+                    model.randomize()
+                }
+            } label: {
+                Label("Variants", systemImage: "sparkles")
+            }
+            .dexButton(accent: AppTheme.Colors.scannerPurple)
+        }
+    }
+}
+
+private struct PackHeroView: View {
+    @ObservedObject var model: DesignViewModel
+
+    private var pack: IconPack { model.selectedPack }
+    private var design: FolderIconDesign { model.selectedDesign }
+    private var accent: Color { AppTheme.Colors.categoryColor(pack.category) }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: AppTheme.Spacing.xl) {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.lg) {
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    DataChip(label: "Pack", value: pack.category.dexCode, accent: accent)
+                    DataChip(label: "Count", value: "\(pack.icons.count) icons", accent: AppTheme.Colors.scannerCyan)
+                    DataChip(label: "Mode", value: "Production", accent: AppTheme.Colors.scannerPurple)
+                }
+
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+                    Text(pack.name)
+                        .font(AppTheme.Typography.heroTitle)
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(pack.description)
+                        .font(AppTheme.Typography.body)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    ElementTypeChip(type: design.type)
+                    DataChip(label: "Texture", value: design.textureStyle.title, accent: accent)
+                    DataChip(label: "Glow", value: design.glowStyle.title, accent: AppTheme.Colors.scannerYellow)
+                }
+
+                HStack(spacing: AppTheme.Spacing.md) {
+                    Button {
+                        model.exportFullPack()
+                    } label: {
+                        Label("Export Full Pack", systemImage: "square.and.arrow.up")
+                    }
+                    .dexButton(accent: accent, prominent: true)
+
+                    Button {
+                        model.applyToFolder()
+                    } label: {
+                        Label("Apply Theme", systemImage: "folder.badge.gearshape")
+                    }
+                    .dexButton(accent: AppTheme.Colors.scannerCyan)
+
+                    Button {
+                        withAnimation(AppTheme.Motion.spring) {
+                            model.randomize()
+                        }
+                    } label: {
+                        Label("Generate Variants", systemImage: "wand.and.stars")
+                    }
+                    .dexButton(accent: AppTheme.Colors.scannerPurple)
+                }
+            }
+
+            Spacer(minLength: AppTheme.Spacing.lg)
+
+            ZStack {
+                Circle()
+                    .stroke(accent.opacity(0.26), lineWidth: 1)
+                    .frame(width: 246, height: 246)
+                Circle()
+                    .stroke(AppTheme.Colors.scannerCyan.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [6, 8]))
+                    .frame(width: 202, height: 202)
+                Image(nsImage: model.previewImage(size: 512, quality: .preview))
+                    .resizable()
+                    .interpolation(model.configuration.textureStyle == .pixel ? .none : .high)
+                    .frame(width: 206, height: 206)
+                    .shadow(color: accent.opacity(0.38), radius: 28, y: 14)
+            }
+            .frame(width: 280, height: 260)
+            .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: AppTheme.Radius.xl, style: .continuous))
+            .overlay {
+                CornerBrackets(color: accent.opacity(0.50), inset: 13, length: 24)
+            }
+        }
+        .padding(AppTheme.Spacing.xl)
+        .dexPanel(cornerRadius: AppTheme.Radius.xl, accent: accent, isActive: true, showScanlines: true)
+    }
+}
+
+private struct PackCarouselView: View {
+    @ObservedObject var model: DesignViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack {
+                Text("PRODUCTION PACKS")
+                    .font(AppTheme.Typography.sectionLabel)
+                    .tracking(1.3)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                Spacer()
+                Text("\(model.visiblePacks.count) indexed")
+                    .font(AppTheme.Typography.utilityLabel)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    FilterPill(title: "All", isSelected: model.selectedTypeFilter == nil) {
-                        withAnimation { model.selectedTypeFilter = nil }
-                    }
-                    ForEach(model.productionFilterTypes) { type in
-                        FilterPill(title: type.title, isSelected: model.selectedTypeFilter == type) {
-                            withAnimation { model.selectedTypeFilter = type }
-                        }
+                HStack(spacing: AppTheme.Spacing.md) {
+                    ForEach(model.visiblePacks) { pack in
+                        DexPackCard(
+                            pack: pack,
+                            isSelected: pack.id == model.selectedPackID,
+                            isPinned: model.pinnedPackIDs.contains(pack.id),
+                            selectAction: {
+                                withAnimation(AppTheme.Motion.spring) {
+                                    model.apply(pack: pack)
+                                }
+                            },
+                            pinAction: {
+                                model.togglePinned(pack: pack)
+                            }
+                        )
                     }
                 }
+                .padding(.vertical, 2)
             }
         }
     }
 }
 
-private struct PackCard: View {
+private struct DexPackCard: View {
     var pack: IconPack
     var isSelected: Bool
+    var isPinned: Bool
+    var selectAction: () -> Void
+    var pinAction: () -> Void
+
+    @State private var isHovered = false
+
+    private var accent: Color {
+        AppTheme.Colors.categoryColor(pack.category)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(pack.name)
-                    .font(.headline)
-                    .lineLimit(1)
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack(alignment: .top) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(LinearGradient(colors: [accent, accent.opacity(0.38)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    Image(systemName: pack.category.dexSymbolName)
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 44, height: 44)
+
                 Spacer()
-                if pack.isPremium {
-                    Image(systemName: "sparkles")
-                        .foregroundStyle(pack.accentColor.swiftUIColor)
+
+                Button(action: pinAction) {
+                    Image(systemName: isPinned ? "pin.fill" : "pin")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(isPinned ? accent : AppTheme.Colors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                Text(pack.name)
+                    .font(AppTheme.Typography.rowTitle)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                    .lineLimit(1)
+
+                Text(pack.category.dexSubtitle)
+                    .font(AppTheme.Typography.rowMeta)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                    .lineLimit(1)
+            }
+
+            HStack {
+                Text("\(pack.icons.count) icons")
+                    .font(AppTheme.Typography.utilityLabel)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                Spacer()
+                StatusLED(color: accent, isActive: isSelected || isHovered)
+            }
+        }
+        .padding(AppTheme.Spacing.md)
+        .frame(width: 212, height: 154)
+        .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: accent, isActive: isSelected || isHovered, showScanlines: isSelected)
+        .scaleEffect(isHovered ? 1.018 : 1)
+        .animation(AppTheme.Motion.quick, value: isHovered)
+        .onTapGesture(perform: selectAction)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+private struct RecentExportStrip: View {
+    @ObservedObject var model: DesignViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack {
+                Label("Recently Exported", systemImage: "clock.arrow.circlepath")
+                    .font(AppTheme.Typography.sectionLabel)
+                    .tracking(1.1)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                Spacer()
+            }
+
+            HStack(spacing: AppTheme.Spacing.sm) {
+                ForEach(model.recentlyExportedDesigns) { design in
+                    Button {
+                        withAnimation(AppTheme.Motion.spring) {
+                            model.selectDesign(design)
+                        }
+                    } label: {
+                        HStack(spacing: AppTheme.Spacing.sm) {
+                            Image(nsImage: model.previewImage(for: design, size: 128))
+                                .resizable()
+                                .interpolation(design.textureStyle == .pixel ? .none : .high)
+                                .frame(width: 34, height: 34)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(design.name)
+                                    .lineLimit(1)
+                                Text(design.type.title)
+                                    .font(AppTheme.Typography.utilityLabel)
+                                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, AppTheme.Spacing.sm)
+                    .padding(.vertical, AppTheme.Spacing.xs)
+                    .background(AppTheme.Colors.panelRaised.opacity(0.52), in: RoundedRectangle(cornerRadius: AppTheme.Radius.md, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: AppTheme.Radius.md, style: .continuous)
+                            .stroke(AppTheme.Colors.typeColor(design.type).opacity(0.25), lineWidth: 1)
+                    }
                 }
             }
+        }
+        .padding(AppTheme.Spacing.md)
+        .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: AppTheme.Colors.scannerCyan, showScanlines: true)
+    }
+}
 
-            Text(pack.description)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
+private struct BrowserControlPanel: View {
+    @ObservedObject var model: DesignViewModel
 
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             HStack {
-                Label("\(pack.icons.count) icons", systemImage: "square.grid.2x2")
+                Text("ICON GRID")
+                    .font(AppTheme.Typography.sectionLabel)
+                    .tracking(1.3)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+
                 Spacer()
-                Circle()
-                    .fill(pack.accentColor.swiftUIColor)
-                    .frame(width: 10, height: 10)
+
+                Text("\(model.filteredDesigns.count) visible")
+                    .font(AppTheme.Typography.utilityLabel)
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    FilterPill(title: "All", color: AppTheme.Colors.scannerCyan, isSelected: model.selectedTypeFilter == nil) {
+                        withAnimation(AppTheme.Motion.smooth) { model.selectedTypeFilter = nil }
+                    }
+                    ForEach(model.productionFilterTypes) { type in
+                        FilterPill(title: type.title, color: AppTheme.Colors.typeColor(type), isSelected: model.selectedTypeFilter == type) {
+                            withAnimation(AppTheme.Motion.smooth) { model.selectedTypeFilter = type }
+                        }
+                    }
+                }
+            }
         }
-        .padding(14)
-        .frame(width: 230, height: 132)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? pack.accentColor.swiftUIColor.opacity(0.8) : Color.secondary.opacity(0.16), lineWidth: isSelected ? 2 : 1)
-        }
+        .padding(AppTheme.Spacing.md)
+        .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: AppTheme.Colors.categoryColor(model.selectedPack.category), showScanlines: true)
     }
 }
 
@@ -153,52 +428,108 @@ private struct IconGridCard: View {
     var image: NSImage
     var isSelected: Bool
     var isHovered: Bool
+    var isFavorite: Bool
+    var selectAction: () -> Void
+    var favoriteAction: () -> Void
+    var exportAction: () -> Void
+
+    private var accent: Color {
+        AppTheme.Colors.typeColor(design.type)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(design.accentColor.swiftUIColor.opacity(isHovered ? 0.18 : 0.08))
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(design.textureStyle == .pixel ? .none : .high)
-                    .frame(width: isHovered ? 128 : 118, height: isHovered ? 128 : 118)
-                    .shadow(color: design.accentColor.swiftUIColor.opacity(isHovered ? 0.38 : 0.16), radius: isHovered ? 18 : 8, y: 6)
-            }
-            .frame(height: 150)
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            ZStack(alignment: .topTrailing) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: AppTheme.Radius.lg, style: .continuous)
+                        .fill(
+                            RadialGradient(
+                                colors: [accent.opacity(isHovered ? 0.28 : 0.16), AppTheme.Colors.panelBase.opacity(0.72)],
+                                center: .center,
+                                startRadius: 8,
+                                endRadius: 142
+                            )
+                        )
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(design.name)
-                    .font(.headline)
-                    .lineLimit(1)
-                Text("\(design.type.title) - \(design.textureStyle.title)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    Circle()
+                        .stroke(accent.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [5, 7]))
+                        .frame(width: 122, height: 122)
+
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(design.textureStyle == .pixel ? .none : .high)
+                        .frame(width: isHovered ? 134 : 124, height: isHovered ? 134 : 124)
+                        .shadow(color: accent.opacity(isHovered ? 0.48 : 0.20), radius: isHovered ? 22 : 10, y: 8)
+                }
+                .frame(height: 164)
+
+                HStack(spacing: AppTheme.Spacing.xs) {
+                    Button(action: favoriteAction) {
+                        Image(systemName: isFavorite ? "star.fill" : "star")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: exportAction) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .foregroundStyle(isFavorite ? AppTheme.Colors.scannerYellow : AppTheme.Colors.textSecondary)
+                .padding(AppTheme.Spacing.sm)
+                .background(AppTheme.Colors.panelBase.opacity(0.78), in: Capsule())
+                .padding(AppTheme.Spacing.sm)
+                .opacity(isHovered || isSelected || isFavorite ? 1 : 0)
+            }
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                HStack {
+                    Text(design.name)
+                        .font(AppTheme.Typography.rowTitle)
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                        .lineLimit(1)
+                    Spacer(minLength: AppTheme.Spacing.sm)
+                    ElementTypeChip(type: design.type)
+                }
+
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    Text(design.textureStyle.title)
+                    Text("/")
+                    Text(design.glowStyle.title)
+                }
+                .font(AppTheme.Typography.rowMeta)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+                .lineLimit(1)
             }
         }
-        .padding(10)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? design.accentColor.swiftUIColor : Color.secondary.opacity(0.14), lineWidth: isSelected ? 2 : 1)
-        }
-        .scaleEffect(isHovered ? 1.015 : 1)
+        .padding(AppTheme.Spacing.md)
+        .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: accent, isActive: isSelected || isHovered, showScanlines: isSelected)
+        .scaleEffect(isHovered ? 1.018 : 1)
+        .animation(AppTheme.Motion.quick, value: isHovered)
+        .animation(AppTheme.Motion.smooth, value: isSelected)
+        .onTapGesture(perform: selectAction)
     }
 }
 
 private struct FilterPill: View {
     var title: String
+    var color: Color
     var isSelected: Bool
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.caption.weight(.medium))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(isSelected ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.1), in: Capsule())
+                .font(AppTheme.Typography.callout.weight(.semibold))
+                .foregroundStyle(isSelected ? Color.black.opacity(0.82) : AppTheme.Colors.textSecondary)
+                .padding(.horizontal, AppTheme.Spacing.md)
+                .padding(.vertical, AppTheme.Spacing.sm)
+                .background(isSelected ? color : color.opacity(0.12), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(color.opacity(isSelected ? 0.46 : 0.26), lineWidth: 1)
+                }
         }
         .buttonStyle(.plain)
     }
@@ -206,16 +537,19 @@ private struct FilterPill: View {
 
 private struct EmptyStateView: View {
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: AppTheme.Spacing.md) {
             Image(systemName: "square.dashed")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text("No icons match this filter")
-                .font(.headline)
-            Text("Clear search or choose another type.")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 42, weight: .bold))
+                .foregroundStyle(AppTheme.Colors.textTertiary)
+            Text("No icons match this scan")
+                .font(AppTheme.Typography.title)
+                .foregroundStyle(AppTheme.Colors.textPrimary)
+            Text("Clear search, switch type filters, or choose another production pack.")
+                .font(AppTheme.Typography.body)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, minHeight: 260)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .frame(maxWidth: .infinity, minHeight: 300)
+        .dexPanel(cornerRadius: AppTheme.Radius.xl, accent: AppTheme.Colors.scannerCyan, showScanlines: true)
     }
 }

@@ -3,15 +3,38 @@ import Combine
 import Foundation
 import PokeFoldersCore
 
+enum IconSortMode: String, CaseIterable, Identifiable {
+    case packOrder
+    case name
+    case type
+    case rarity
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .packOrder: "Pack Order"
+        case .name: "Name"
+        case .type: "Type"
+        case .rarity: "Aura"
+        }
+    }
+}
+
 @MainActor
 final class DesignViewModel: ObservableObject {
     @Published var configuration: IconConfiguration
     @Published var selectedPackID: String
     @Published var selectedDesignID: String
     @Published var selectedThemeID: String?
+    @Published var packSearchText = ""
     @Published var searchText = ""
     @Published var selectedTypeFilter: ElementType?
+    @Published var sortMode: IconSortMode = .packOrder
     @Published var hoveredDesignID: String?
+    @Published var favoriteDesignIDs: Set<String> = []
+    @Published var pinnedPackIDs: Set<String> = []
+    @Published var recentlyExportedDesignIDs: [String] = []
     @Published var statusMessage: StatusMessage?
     @Published var isExporting = false
 
@@ -52,18 +75,61 @@ final class DesignViewModel: ObservableObject {
         return FolderTheme(design: selectedDesign, pack: pack)
     }
 
+    var visiblePacks: [IconPack] {
+        let query = packSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filtered = iconPacks.filter { pack in
+            query.isEmpty
+                || pack.name.localizedCaseInsensitiveContains(query)
+                || pack.description.localizedCaseInsensitiveContains(query)
+                || pack.category.dexSubtitle.localizedCaseInsensitiveContains(query)
+                || pack.icons.contains { $0.name.localizedCaseInsensitiveContains(query) || $0.type.title.localizedCaseInsensitiveContains(query) }
+        }
+
+        return filtered.sorted { lhs, rhs in
+            let lhsPinned = pinnedPackIDs.contains(lhs.id)
+            let rhsPinned = pinnedPackIDs.contains(rhs.id)
+            if lhsPinned != rhsPinned {
+                return lhsPinned
+            }
+
+            let lhsIndex = iconPacks.firstIndex(where: { $0.id == lhs.id }) ?? Int.max
+            let rhsIndex = iconPacks.firstIndex(where: { $0.id == rhs.id }) ?? Int.max
+            return lhsIndex < rhsIndex
+        }
+    }
+
     var filteredDesigns: [FolderIconDesign] {
-        selectedPack.icons.filter { design in
+        let filtered = selectedPack.icons.filter { design in
             let matchesSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || design.name.localizedCaseInsensitiveContains(searchText)
                 || design.type.title.localizedCaseInsensitiveContains(searchText)
             let matchesType = selectedTypeFilter == nil || design.type == selectedTypeFilter
             return matchesSearch && matchesType
         }
+
+        switch sortMode {
+        case .packOrder:
+            return filtered
+        case .name:
+            return filtered.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        case .type:
+            return filtered.sorted {
+                if $0.type.title == $1.type.title {
+                    return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+                }
+                return $0.type.title.localizedStandardCompare($1.type.title) == .orderedAscending
+            }
+        case .rarity:
+            return filtered.sorted { rarityScore($0) > rarityScore($1) }
+        }
     }
 
     var productionFilterTypes: [ElementType] {
         [.fire, .water, .grass, .electric, .dark, .mystic, .legendary, .pixel]
+    }
+
+    var recentlyExportedDesigns: [FolderIconDesign] {
+        recentlyExportedDesignIDs.compactMap { ProductionIconCatalog.design(id: $0) }
     }
 
     func selectPack(id: String) {
@@ -94,6 +160,26 @@ final class DesignViewModel: ObservableObject {
     func apply(pack: IconPack) {
         selectPack(id: pack.id)
         statusMessage = StatusMessage(text: "\(pack.name) opened.", style: .success)
+    }
+
+    func togglePinned(pack: IconPack) {
+        if pinnedPackIDs.contains(pack.id) {
+            pinnedPackIDs.remove(pack.id)
+            statusMessage = StatusMessage(text: "\(pack.name) unpinned.", style: .neutral)
+        } else {
+            pinnedPackIDs.insert(pack.id)
+            statusMessage = StatusMessage(text: "\(pack.name) pinned.", style: .success)
+        }
+    }
+
+    func toggleFavorite(_ design: FolderIconDesign) {
+        if favoriteDesignIDs.contains(design.id) {
+            favoriteDesignIDs.remove(design.id)
+            statusMessage = StatusMessage(text: "\(design.name) removed from favorites.", style: .neutral)
+        } else {
+            favoriteDesignIDs.insert(design.id)
+            statusMessage = StatusMessage(text: "\(design.name) favorited.", style: .success)
+        }
     }
 
     func apply(preset: DesignPreset) {
@@ -185,6 +271,7 @@ final class DesignViewModel: ObservableObject {
 
         do {
             try exportService.exportPNG(configuration: configuration, size: size, to: url, quality: .ultra)
+            markRecentlyExported(selectedDesign)
             statusMessage = StatusMessage(text: "PNG exported to \(url.lastPathComponent).", style: .success)
         } catch {
             statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
@@ -201,6 +288,7 @@ final class DesignViewModel: ObservableObject {
                 name: selectedDesign.exportBaseName,
                 quality: .ultra
             )
+            markRecentlyExported(selectedDesign)
             statusMessage = StatusMessage(text: "\(url.lastPathComponent) exported.", style: .success)
         } catch {
             statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
@@ -212,6 +300,7 @@ final class DesignViewModel: ObservableObject {
 
         do {
             try exportService.exportICNS(configuration: configuration, to: url, name: selectedDesign.exportBaseName, quality: .ultra)
+            markRecentlyExported(selectedDesign)
             statusMessage = StatusMessage(text: "ICNS exported to \(url.lastPathComponent).", style: .success)
         } catch {
             statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
@@ -224,6 +313,7 @@ final class DesignViewModel: ObservableObject {
         isExporting = true
         do {
             let url = try exportService.exportFullPack(selectedPack, to: directory, includeZip: true)
+            selectedPack.icons.forEach { markRecentlyExported($0) }
             statusMessage = StatusMessage(text: "\(url.lastPathComponent) exported with PNG, iconsets, and ZIP.", style: .success)
         } catch {
             statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
@@ -240,6 +330,16 @@ final class DesignViewModel: ObservableObject {
         } catch {
             statusMessage = StatusMessage(text: error.localizedDescription, style: .failure)
         }
+    }
+
+    private func markRecentlyExported(_ design: FolderIconDesign) {
+        recentlyExportedDesignIDs.removeAll { $0 == design.id }
+        recentlyExportedDesignIDs.insert(design.id, at: 0)
+        recentlyExportedDesignIDs = Array(recentlyExportedDesignIDs.prefix(6))
+    }
+
+    private func rarityScore(_ design: FolderIconDesign) -> Double {
+        design.glowIntensity + design.shadowIntensity + (design.glowStyle == .cosmic ? 0.40 : 0) + (design.type == .legendary ? 0.35 : 0)
     }
 }
 
