@@ -32,6 +32,9 @@ RESOURCE_BUNDLE="$(dirname "$BUILD_BINARY")/$RESOURCE_BUNDLE_NAME"
 if [[ -d "$RESOURCE_BUNDLE" ]]; then
   cp -R "$RESOURCE_BUNDLE" "$APP_RESOURCES/"
 fi
+if [[ -f "$ROOT_DIR/Sources/PokeFolders/Resources/AppIcon/PokeFolders.icns" ]]; then
+  cp "$ROOT_DIR/Sources/PokeFolders/Resources/AppIcon/PokeFolders.icns" "$APP_RESOURCES/PokeFolders.icns"
+fi
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -44,6 +47,8 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleIconFile</key>
+  <string>PokeFolders</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>

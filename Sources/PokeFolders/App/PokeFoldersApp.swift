@@ -42,8 +42,11 @@ struct PokeFoldersApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if let logoURL = Bundle.module.url(forResource: "PokeFoldersLogo", withExtension: "png", subdirectory: "AppIcon"),
+        if let logoURL = Bundle.module.url(forResource: "PokeFolders", withExtension: "icns", subdirectory: "AppIcon"),
            let logo = NSImage(contentsOf: logoURL) {
+            NSApp.applicationIconImage = logo
+        } else if let logoURL = Bundle.module.url(forResource: "PokeFoldersLogo", withExtension: "png", subdirectory: "AppIcon"),
+                  let logo = NSImage(contentsOf: logoURL) {
             NSApp.applicationIconImage = logo
         }
 
