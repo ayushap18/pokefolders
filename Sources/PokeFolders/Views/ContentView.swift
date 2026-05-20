@@ -7,24 +7,22 @@ struct ContentView: View {
     @AppStorage("hasSeenPokeFoldersOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
-        NavigationSplitView {
+        HSplitView {
             SidebarView(model: model)
-                .navigationSplitViewColumnWidth(min: 284, ideal: 312, max: 360)
-        } detail: {
-            HSplitView {
-                PackBrowserView(model: model)
-                    .frame(minWidth: 680, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: 260, idealWidth: 278, maxWidth: 310, maxHeight: .infinity)
 
-                IconDetailView(model: model, presetStore: presetStore)
-                    .frame(minWidth: 380, idealWidth: 420, maxWidth: 480, maxHeight: .infinity)
-            }
-            .background(AppTheme.Colors.appBackground)
-            .overlay(alignment: .bottom) {
-                if let status = model.statusMessage {
-                    ToastBanner(status: status)
-                        .padding(.bottom, 18)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+            PackBrowserView(model: model)
+                .frame(minWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
+
+            IconDetailView(model: model, presetStore: presetStore)
+                .frame(minWidth: 330, idealWidth: 360, maxWidth: 420, maxHeight: .infinity)
+        }
+        .background(AppTheme.Colors.appBackground)
+        .overlay(alignment: .bottom) {
+            if let status = model.statusMessage {
+                ToastBanner(status: status)
+                    .padding(.bottom, 18)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .navigationTitle("PokeFolders")

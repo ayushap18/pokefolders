@@ -11,7 +11,7 @@ struct PokeFoldersApp: App {
     var body: some Scene {
         WindowGroup("PokeFolders", id: "main") {
             ContentView(model: model, presetStore: presetStore)
-                .frame(minWidth: 1320, minHeight: 760)
+                .frame(minWidth: 1180, minHeight: 720)
         }
         .windowStyle(.titleBar)
         .commands {

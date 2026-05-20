@@ -1,6 +1,6 @@
 import Foundation
 
-public struct IconConfiguration: Codable, Equatable, Identifiable, Sendable {
+public struct IconConfiguration: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var id: UUID
     public var themeID: String
     public var designID: String?

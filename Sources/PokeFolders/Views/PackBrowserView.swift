@@ -5,7 +5,7 @@ struct PackBrowserView: View {
     @ObservedObject var model: DesignViewModel
 
     private let columns = [
-        GridItem(.adaptive(minimum: 188, maximum: 242), spacing: AppTheme.Spacing.lg)
+        GridItem(.adaptive(minimum: 168, maximum: 220), spacing: AppTheme.Spacing.md)
     ]
 
     private var accent: Color {
@@ -28,13 +28,12 @@ struct PackBrowserView: View {
                 if model.filteredDesigns.isEmpty {
                     EmptyStateView()
                 } else {
-                    LazyVGrid(columns: columns, spacing: AppTheme.Spacing.lg) {
+                    LazyVGrid(columns: columns, spacing: AppTheme.Spacing.md) {
                         ForEach(model.filteredDesigns) { design in
                             IconGridCard(
                                 design: design,
                                 image: model.previewImage(for: design, size: 256),
                                 isSelected: design.id == model.selectedDesignID,
-                                isHovered: design.id == model.hoveredDesignID,
                                 isFavorite: model.favoriteDesignIDs.contains(design.id),
                                 selectAction: {
                                     withAnimation(AppTheme.Motion.spring) {
@@ -49,11 +48,6 @@ struct PackBrowserView: View {
                                     model.exportPNG(size: 1024)
                                 }
                             )
-                            .onHover { hovering in
-                                withAnimation(AppTheme.Motion.quick) {
-                                    model.hoveredDesignID = hovering ? design.id : nil
-                                }
-                            }
                             .contextMenu {
                                 Button("Apply this design") { model.selectDesign(design) }
                                 Button(model.favoriteDesignIDs.contains(design.id) ? "Remove Favorite" : "Favorite") {
@@ -111,6 +105,7 @@ private struct StudioToolbar: View {
             }
             .padding(.horizontal, AppTheme.Spacing.md)
             .frame(height: 42)
+            .frame(minWidth: 240, maxWidth: .infinity)
             .dexPanel(cornerRadius: AppTheme.Radius.md, accent: AppTheme.Colors.scannerCyan, showScanlines: true)
 
             Picker("Sort", selection: $model.sortMode) {
@@ -120,7 +115,7 @@ private struct StudioToolbar: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
-            .frame(width: 136)
+            .frame(width: 126)
 
             Button {
                 model.exportFullPack()
@@ -138,6 +133,7 @@ private struct StudioToolbar: View {
             }
             .dexButton(accent: AppTheme.Colors.scannerPurple)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -181,14 +177,14 @@ private struct PackHeroView: View {
                     Button {
                         model.exportFullPack()
                     } label: {
-                        Label("Export Full Pack", systemImage: "square.and.arrow.up")
+                        Label("Export Pack", systemImage: "square.and.arrow.up")
                     }
                     .dexButton(accent: accent, prominent: true)
 
                     Button {
                         model.applyToFolder()
                     } label: {
-                        Label("Apply Theme", systemImage: "folder.badge.gearshape")
+                        Label("Apply", systemImage: "folder.badge.gearshape")
                     }
                     .dexButton(accent: AppTheme.Colors.scannerCyan)
 
@@ -197,34 +193,34 @@ private struct PackHeroView: View {
                             model.randomize()
                         }
                     } label: {
-                        Label("Generate Variants", systemImage: "wand.and.stars")
+                        Label("Variants", systemImage: "wand.and.stars")
                     }
                     .dexButton(accent: AppTheme.Colors.scannerPurple)
                 }
             }
 
-            Spacer(minLength: AppTheme.Spacing.lg)
+            Spacer(minLength: AppTheme.Spacing.md)
 
             ZStack {
                 Circle()
                     .stroke(accent.opacity(0.26), lineWidth: 1)
-                    .frame(width: 246, height: 246)
+                    .frame(width: 214, height: 214)
                 Circle()
                     .stroke(AppTheme.Colors.scannerCyan.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [6, 8]))
-                    .frame(width: 202, height: 202)
-                Image(nsImage: model.previewImage(size: 512, quality: .preview))
+                    .frame(width: 176, height: 176)
+                Image(nsImage: model.previewImage(size: 384, quality: .preview))
                     .resizable()
                     .interpolation(model.configuration.textureStyle == .pixel ? .none : .high)
-                    .frame(width: 206, height: 206)
-                    .shadow(color: accent.opacity(0.38), radius: 28, y: 14)
+                    .frame(width: 176, height: 176)
+                    .shadow(color: accent.opacity(0.30), radius: 18, y: 10)
             }
-            .frame(width: 280, height: 260)
+            .frame(width: 232, height: 224)
             .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: AppTheme.Radius.xl, style: .continuous))
             .overlay {
                 CornerBrackets(color: accent.opacity(0.50), inset: 13, length: 24)
             }
         }
-        .padding(AppTheme.Spacing.xl)
+        .padding(AppTheme.Spacing.lg)
         .dexPanel(cornerRadius: AppTheme.Radius.xl, accent: accent, isActive: true, showScanlines: true)
     }
 }
@@ -427,11 +423,12 @@ private struct IconGridCard: View {
     var design: FolderIconDesign
     var image: NSImage
     var isSelected: Bool
-    var isHovered: Bool
     var isFavorite: Bool
     var selectAction: () -> Void
     var favoriteAction: () -> Void
     var exportAction: () -> Void
+
+    @State private var isHovered = false
 
     private var accent: Color {
         AppTheme.Colors.typeColor(design.type)
@@ -505,10 +502,13 @@ private struct IconGridCard: View {
         }
         .padding(AppTheme.Spacing.md)
         .dexPanel(cornerRadius: AppTheme.Radius.lg, accent: accent, isActive: isSelected || isHovered, showScanlines: isSelected)
-        .scaleEffect(isHovered ? 1.018 : 1)
+        .scaleEffect(isHovered ? 1.008 : 1)
         .animation(AppTheme.Motion.quick, value: isHovered)
         .animation(AppTheme.Motion.smooth, value: isSelected)
         .onTapGesture(perform: selectAction)
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 }
 

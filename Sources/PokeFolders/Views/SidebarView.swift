@@ -11,13 +11,13 @@ struct SidebarView: View {
 
             VStack(spacing: 0) {
                 SidebarHeader(totalPacks: model.iconPacks.count, totalIcons: ProductionIconCatalog.allDesigns.count)
-                    .padding(.horizontal, AppTheme.Spacing.lg)
-                    .padding(.top, AppTheme.Spacing.lg)
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                    .padding(.top, AppTheme.Spacing.md)
                     .padding(.bottom, AppTheme.Spacing.md)
 
                 SidebarPackSearch(text: $model.packSearchText)
-                    .padding(.horizontal, AppTheme.Spacing.lg)
-                    .padding(.bottom, AppTheme.Spacing.lg)
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                    .padding(.bottom, AppTheme.Spacing.md)
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
@@ -54,12 +54,11 @@ struct SidebarView: View {
                         SafetyInfoCard()
                             .padding(.top, AppTheme.Spacing.md)
                     }
-                    .padding(.horizontal, AppTheme.Spacing.lg)
+                    .padding(.horizontal, AppTheme.Spacing.md)
                     .padding(.bottom, AppTheme.Spacing.xl)
                 }
             }
         }
-        .frame(minWidth: 260)
     }
 
     private var sectionHeader: some View {
@@ -128,7 +127,7 @@ private struct SidebarHeader: View {
                 DataChip(label: "Icons", value: "\(totalIcons)", accent: AppTheme.Colors.scannerCyan)
             }
         }
-        .padding(AppTheme.Spacing.lg)
+        .padding(AppTheme.Spacing.md)
         .dexPanel(cornerRadius: AppTheme.Radius.xl, accent: AppTheme.Colors.scannerRed, isActive: true, showScanlines: true)
     }
 }

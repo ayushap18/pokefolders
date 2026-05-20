@@ -20,16 +20,18 @@ struct DexPanelModifier: ViewModifier {
                     )
             }
             .overlay {
-                if showScanlines {
+                if showScanlines && isActive {
                     ScanlineOverlay(opacity: isActive ? 0.045 : 0.025)
                         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 }
             }
             .overlay {
-                CornerBrackets(color: accent.opacity(isActive ? 0.62 : 0.22), inset: 8)
+                if isActive {
+                    CornerBrackets(color: accent.opacity(0.54), inset: 8)
+                }
             }
-            .shadow(color: accent.opacity(isActive ? 0.20 : 0.055), radius: isActive ? 22 : 10, x: 0, y: isActive ? 10 : 6)
-            .shadow(color: .black.opacity(0.32), radius: 18, x: 0, y: 10)
+            .shadow(color: accent.opacity(isActive ? 0.14 : 0.035), radius: isActive ? 14 : 6, x: 0, y: isActive ? 7 : 4)
+            .shadow(color: .black.opacity(0.24), radius: 12, x: 0, y: 8)
     }
 }
 

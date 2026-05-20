@@ -16,7 +16,7 @@ struct ProductionPackSidebarRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
                 token
 
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
@@ -46,7 +46,7 @@ struct ProductionPackSidebarRow: View {
                     }
                 }
 
-                Spacer(minLength: AppTheme.Spacing.sm)
+                Spacer(minLength: AppTheme.Spacing.xs)
 
                 VStack(alignment: .trailing, spacing: AppTheme.Spacing.xs) {
                     Text("\(pack.icons.count)")
@@ -65,8 +65,8 @@ struct ProductionPackSidebarRow: View {
                         .foregroundStyle(isSelected ? accent : AppTheme.Colors.textTertiary)
                 }
             }
-            .padding(.horizontal, AppTheme.Spacing.md)
-            .frame(height: 70)
+            .padding(.horizontal, AppTheme.Spacing.sm)
+            .frame(height: 62)
             .background {
                 RoundedRectangle(cornerRadius: AppTheme.Radius.lg, style: .continuous)
                     .fill(AppTheme.Colors.panelGradient(accent: accent, isActive: isSelected || isHovered))
@@ -74,7 +74,7 @@ struct ProductionPackSidebarRow: View {
             .overlay(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
                     .fill(accent)
-                    .frame(width: isSelected ? 4 : 2, height: isSelected ? 46 : 28)
+                    .frame(width: isSelected ? 4 : 2, height: isSelected ? 40 : 24)
                     .shadow(color: accent.opacity(isSelected ? 0.78 : 0.28), radius: isSelected ? 10 : 4)
                     .padding(.leading, 6)
                     .opacity(isSelected || isHovered ? 1 : 0.45)
@@ -92,7 +92,7 @@ struct ProductionPackSidebarRow: View {
             .contentShape(RoundedRectangle(cornerRadius: AppTheme.Radius.lg, style: .continuous))
         }
         .buttonStyle(.plain)
-        .scaleEffect(isHovered ? 1.012 : 1)
+        .scaleEffect(isHovered ? 1.006 : 1)
         .animation(AppTheme.Motion.quick, value: isHovered)
         .animation(AppTheme.Motion.smooth, value: isSelected)
         .onHover { hovering in
@@ -112,7 +112,7 @@ struct ProductionPackSidebarRow: View {
                 )
 
             Image(systemName: pack.category.dexSymbolName)
-                .font(.system(size: 17, weight: .black))
+                .font(.system(size: 15, weight: .black))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.28), radius: 3, y: 2)
 
@@ -122,7 +122,7 @@ struct ProductionPackSidebarRow: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .padding(5)
         }
-        .frame(width: 44, height: 44)
+        .frame(width: 38, height: 38)
         .overlay {
             RoundedRectangle(cornerRadius: 13, style: .continuous)
                 .stroke(Color.white.opacity(0.30), lineWidth: 1)

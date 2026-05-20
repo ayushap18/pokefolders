@@ -44,6 +44,8 @@ final class DesignViewModel: ObservableObject {
 
     private let exportService: ExportService
     private let folderIconApplier: FolderIconApplier
+    private var designPreviewCache: [String: NSImage] = [:]
+    private var livePreviewCache: [String: NSImage] = [:]
 
     init(
         configuration: IconConfiguration = .starter,
@@ -149,6 +151,7 @@ final class DesignViewModel: ObservableObject {
             selectedPackID = design.packId
         }
         configuration.apply(design: design)
+        livePreviewCache.removeAll(keepingCapacity: true)
         statusMessage = StatusMessage(text: "\(design.name) loaded.", style: .success)
     }
 
@@ -184,6 +187,7 @@ final class DesignViewModel: ObservableObject {
 
     func apply(preset: DesignPreset) {
         configuration = preset.configuration
+        livePreviewCache.removeAll(keepingCapacity: true)
         let designID = preset.configuration.designID ?? preset.configuration.themeID
         if let design = ProductionIconCatalog.design(id: designID) {
             selectedDesignID = design.id
@@ -200,26 +204,47 @@ final class DesignViewModel: ObservableObject {
         selectedDesignID = design.id
         selectedPackID = design.packId
         selectedThemeID = design.id
+        livePreviewCache.removeAll(keepingCapacity: true)
         statusMessage = StatusMessage(text: "Random production design generated.", style: .success)
     }
 
     func previewImage(size: Int = 512, quality: RenderQuality = .preview) -> NSImage {
-        ExportRenderer.render(configuration: configuration, size: size, quality: quality)
+        let key = "\(configuration.hashValue)-\(size)-\(quality.rawValue)"
+        if let cached = livePreviewCache[key] {
+            return cached
+        }
+
+        if livePreviewCache.count > 12 {
+            livePreviewCache.removeAll(keepingCapacity: true)
+        }
+
+        let image = ExportRenderer.render(configuration: configuration, size: size, quality: quality)
+        livePreviewCache[key] = image
+        return image
     }
 
     func previewImage(for design: FolderIconDesign, size: Int = 256) -> NSImage {
-        ExportRenderer.render(configuration: IconConfiguration(design: design), size: size, quality: .preview)
+        let key = "\(design.id)-\(size)"
+        if let cached = designPreviewCache[key] {
+            return cached
+        }
+
+        let image = ExportRenderer.render(configuration: IconConfiguration(design: design), size: size, quality: .preview)
+        designPreviewCache[key] = image
+        return image
     }
 
     func setCustomBadge(data: Data) {
         configuration.customBadgeImageData = data
         configuration.badgePosition = .watermark
         configuration.customBadgeOpacity = 0.72
+        livePreviewCache.removeAll(keepingCapacity: true)
         statusMessage = StatusMessage(text: "Custom badge added.", style: .success)
     }
 
     func clearCustomBadge() {
         configuration.customBadgeImageData = nil
+        livePreviewCache.removeAll(keepingCapacity: true)
         statusMessage = StatusMessage(text: "Custom badge cleared.", style: .success)
     }
 
