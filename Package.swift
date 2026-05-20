@@ -18,7 +18,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "PokeFolders",
-            dependencies: ["PokeFoldersCore"]
+            dependencies: ["PokeFoldersCore"],
+            resources: [
+                .process("Resources")
+            ]
         ),
         .executableTarget(
             name: "PokeFoldersCoreChecks",

@@ -1,5 +1,9 @@
 # PokeFolders
 
+<p align="center">
+  <img src="Sources/PokeFolders/Resources/AppIcon/PokeFoldersLogo.png" alt="PokeFolders app logo" width="160">
+</p>
+
 Design beautiful elemental folder icons for macOS, then export them or apply them directly to real Finder folders.
 
 ![macOS](https://img.shields.io/badge/macOS-13%2B-111111?style=for-the-badge&logo=apple&logoColor=white)
