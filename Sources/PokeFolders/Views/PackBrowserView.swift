@@ -85,29 +85,46 @@ private struct StudioToolbar: View {
     @ObservedObject var model: DesignViewModel
 
     var body: some View {
-        HStack(spacing: AppTheme.Spacing.md) {
-            HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: "scope")
-                    .foregroundStyle(AppTheme.Colors.scannerCyan)
-                TextField("Scan icons, types, textures", text: $model.searchText)
-                    .textFieldStyle(.plain)
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(AppTheme.Colors.textPrimary)
-                if !model.searchText.isEmpty {
-                    Button {
-                        model.searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(AppTheme.Colors.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: AppTheme.Spacing.md) {
+                searchField
+                toolbarActions
             }
-            .padding(.horizontal, AppTheme.Spacing.md)
-            .frame(height: 42)
-            .frame(minWidth: 240, maxWidth: .infinity)
-            .dexPanel(cornerRadius: AppTheme.Radius.md, accent: AppTheme.Colors.scannerCyan, showScanlines: true)
 
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+                searchField
+                toolbarActions
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: AppTheme.Spacing.sm) {
+            Image(systemName: "scope")
+                .foregroundStyle(AppTheme.Colors.scannerCyan)
+            TextField("Scan icons, types, textures", text: $model.searchText)
+                .textFieldStyle(.plain)
+                .font(AppTheme.Typography.body)
+                .foregroundStyle(AppTheme.Colors.textPrimary)
+            if !model.searchText.isEmpty {
+                Button {
+                    model.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.md)
+        .frame(height: 42)
+        .frame(minWidth: 260, maxWidth: .infinity)
+        .dexPanel(cornerRadius: AppTheme.Radius.md, accent: AppTheme.Colors.scannerCyan, showScanlines: true)
+    }
+
+    private var toolbarActions: some View {
+        HStack(spacing: AppTheme.Spacing.md) {
             Picker("Sort", selection: $model.sortMode) {
                 ForEach(IconSortMode.allCases) { mode in
                     Text(mode.title).tag(mode)
@@ -133,7 +150,6 @@ private struct StudioToolbar: View {
             }
             .dexButton(accent: AppTheme.Colors.scannerPurple)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -152,6 +168,7 @@ private struct PackHeroView: View {
                     DataChip(label: "Count", value: "\(pack.icons.count) icons", accent: AppTheme.Colors.scannerCyan)
                     DataChip(label: "Mode", value: "Production", accent: AppTheme.Colors.scannerPurple)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                     Text(pack.name)
@@ -173,31 +190,14 @@ private struct PackHeroView: View {
                     DataChip(label: "Glow", value: design.glowStyle.title, accent: AppTheme.Colors.scannerYellow)
                 }
 
-                HStack(spacing: AppTheme.Spacing.md) {
-                    Button {
-                        model.exportFullPack()
-                    } label: {
-                        Label("Export Pack", systemImage: "square.and.arrow.up")
+                ViewThatFits(in: .horizontal) {
+                    heroActions
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+                        heroActions
                     }
-                    .dexButton(accent: accent, prominent: true)
-
-                    Button {
-                        model.applyToFolder()
-                    } label: {
-                        Label("Apply", systemImage: "folder.badge.gearshape")
-                    }
-                    .dexButton(accent: AppTheme.Colors.scannerCyan)
-
-                    Button {
-                        withAnimation(AppTheme.Motion.spring) {
-                            model.randomize()
-                        }
-                    } label: {
-                        Label("Variants", systemImage: "wand.and.stars")
-                    }
-                    .dexButton(accent: AppTheme.Colors.scannerPurple)
                 }
             }
+            .layoutPriority(1)
 
             Spacer(minLength: AppTheme.Spacing.md)
 
@@ -222,6 +222,33 @@ private struct PackHeroView: View {
         }
         .padding(AppTheme.Spacing.lg)
         .dexPanel(cornerRadius: AppTheme.Radius.xl, accent: accent, isActive: true, showScanlines: true)
+    }
+
+    private var heroActions: some View {
+        HStack(spacing: AppTheme.Spacing.md) {
+            Button {
+                model.exportFullPack()
+            } label: {
+                Label("Export Pack", systemImage: "square.and.arrow.up")
+            }
+            .dexButton(accent: accent, prominent: true)
+
+            Button {
+                model.applyToFolder()
+            } label: {
+                Label("Apply", systemImage: "folder.badge.gearshape")
+            }
+            .dexButton(accent: AppTheme.Colors.scannerCyan)
+
+            Button {
+                withAnimation(AppTheme.Motion.spring) {
+                    model.randomize()
+                }
+            } label: {
+                Label("Variants", systemImage: "wand.and.stars")
+            }
+            .dexButton(accent: AppTheme.Colors.scannerPurple)
+        }
     }
 }
 

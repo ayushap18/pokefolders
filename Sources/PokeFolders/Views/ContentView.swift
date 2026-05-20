@@ -7,15 +7,30 @@ struct ContentView: View {
     @AppStorage("hasSeenPokeFoldersOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
-        HSplitView {
-            SidebarView(model: model)
-                .frame(minWidth: 260, idealWidth: 278, maxWidth: 310, maxHeight: .infinity)
+        GeometryReader { proxy in
+            let widths = StudioPaneWidths(totalWidth: proxy.size.width)
 
-            PackBrowserView(model: model)
-                .frame(minWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
+            HStack(spacing: 0) {
+                SidebarView(model: model)
+                    .frame(width: widths.sidebar)
+                    .frame(maxHeight: .infinity)
 
-            IconDetailView(model: model, presetStore: presetStore)
-                .frame(minWidth: 330, idealWidth: 360, maxWidth: 420, maxHeight: .infinity)
+                Rectangle()
+                    .fill(AppTheme.Colors.panelStroke)
+                    .frame(width: 1)
+
+                PackBrowserView(model: model)
+                    .frame(width: widths.browser)
+                    .frame(maxHeight: .infinity)
+
+                Rectangle()
+                    .fill(AppTheme.Colors.panelStroke)
+                    .frame(width: 1)
+
+                IconDetailView(model: model, presetStore: presetStore)
+                    .frame(width: widths.inspector)
+                    .frame(maxHeight: .infinity)
+            }
         }
         .background(AppTheme.Colors.appBackground)
         .overlay(alignment: .bottom) {
@@ -78,6 +93,19 @@ struct ContentView: View {
                 hasSeenOnboarding = true
             }
         }
+    }
+}
+
+private struct StudioPaneWidths {
+    let sidebar: CGFloat
+    let browser: CGFloat
+    let inspector: CGFloat
+
+    init(totalWidth: CGFloat) {
+        let clampedWidth = max(totalWidth, 1180)
+        sidebar = min(max(clampedWidth * 0.17, 288), 326)
+        inspector = min(max(clampedWidth * 0.24, 348), 430)
+        browser = max(540, clampedWidth - sidebar - inspector - 2)
     }
 }
 

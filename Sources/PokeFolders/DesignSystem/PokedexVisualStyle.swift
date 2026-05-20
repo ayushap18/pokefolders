@@ -83,11 +83,13 @@ struct DataChip: View {
             Text(label.uppercased())
                 .font(AppTheme.Typography.utilityLabel)
                 .foregroundStyle(AppTheme.Colors.textTertiary)
+                .lineLimit(1)
             Text(value)
                 .font(AppTheme.Typography.callout)
                 .foregroundStyle(AppTheme.Colors.textPrimary)
                 .lineLimit(1)
         }
+        .fixedSize(horizontal: true, vertical: false)
         .padding(.horizontal, AppTheme.Spacing.md)
         .padding(.vertical, AppTheme.Spacing.sm)
         .background(accent.opacity(0.12), in: Capsule())

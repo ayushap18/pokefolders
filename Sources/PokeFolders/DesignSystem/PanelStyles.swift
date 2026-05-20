@@ -42,6 +42,7 @@ struct DexButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(AppTheme.Typography.callout.weight(.semibold))
+            .lineLimit(1)
             .foregroundStyle(isProminent ? Color.black.opacity(0.86) : AppTheme.Colors.textPrimary)
             .padding(.horizontal, AppTheme.Spacing.md)
             .padding(.vertical, 9)
