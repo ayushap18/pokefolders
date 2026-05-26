@@ -154,6 +154,16 @@ PokeFolders is intentionally not a web app. The app uses:
 
 PokeFolders is an independent creative utility. It is not affiliated with, endorsed by, or sponsored by Nintendo, Game Freak, Creatures Inc., or The Pokemon Company. The app avoids official logos, character artwork, and copyrighted assets.
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=ayushap18%2Fpokefolders&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ayushap18/pokefolders&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ayushap18/pokefolders&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ayushap18/pokefolders&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## License
 
 No license has been selected yet. Add one before accepting external contributions.
